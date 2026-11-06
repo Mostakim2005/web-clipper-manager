@@ -1,0 +1,30 @@
+{
+  "name": "web-clipper-manager",
+  "version": "0.3.1",
+  "private": true,
+  "description": "Clip Facebook, Twitter/X, Reddit and articles into one Obsidian-ready Markdown format, with PNG and PDF output.",
+  "scripts": {
+    "test": "node test/run-tests.js",
+    "test:service": "node test/service-test.js",
+    "test:syntax": "node test/syntax-check.js",
+    "test:a11y": "node test/a11y-check.js",
+    "test:all": "npm run test:syntax && npm run test:a11y && npm run test && npm run test:service",
+    "test:pdf": "node test/pdf-test.js",
+    "icons": "node tools/gen-icons.js",
+    "keygen": "node tools/gen-key.js",
+    "service": "node local-service/host.js"
+  },
+  "keywords": ["obsidian", "web-clipper", "markdown", "browser-extension"],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "js-yaml": "^4.1.0",
+    "marked": "^16.4.1",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2"
+  },
+  "devDependencies": {
+    "jsdom": "^27.0.0",
+    "puppeteer-core": "^25.16.0"
+  }
+}

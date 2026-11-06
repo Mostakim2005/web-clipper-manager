@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "Web Clipper Manager",
+  "version": "0.3.1",
+  "description": "Clip Facebook, Twitter/X, Reddit and articles into one Obsidian-ready Markdown format. PNG and PDF included.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqKoyvkZSHVS1ZlR/zDtpq5Z5nif3YZA9ThWPPNJ4JfBRHz7hBjrNP24H4XQDu864M29Uzt5nK8ufLFDf8DR7KcryTWf2DLg/GN1dDZLl2RSQCxJYYaT/fKAKeo3v5o/seDPRhMbeDVW3EMNubHnQ5pJpBF1L/2/sEUMWUHz/FPkIP8UFQaboOnpbDaDPD5ysMNlIuTHCeA2u1CcFSrn9A/Ybhess6FnFRIM52FxfloYFlxLEvWaRoC8Ukf1LP+dxn7pjnZl9X2ZmJMV+3dKFCozpm/jWp02vUwTk9Tv+vroTk9q8tGBQ3qbNqEAfTFALP7Ttjb0rCknlTRJjR2bgQIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "downloads",
+    "debugger",
+    "contextMenus",
+    "unlimitedStorage"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/pages/popup.html",
+    "default_title": "Web Clipper Manager",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "options_page": "src/pages/options.html",
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "js": [
+        "src/vendor/readability.js",
+        "src/vendor/readability-readerable.js",
+        "src/vendor/turndown.js",
+        "src/vendor/turndown-plugin-gfm.js",
+        "src/content/lib.js",
+        "src/content/extract.js"
+      ]
+    }
+  ]
+}

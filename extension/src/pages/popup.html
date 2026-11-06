@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Web Clipper Manager</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">
+        <span class="dot" aria-hidden="true"></span>
+        <h1 class="visually-hidden">Web Clipper Manager</h1>
+        <span>Web Clipper Manager</span>
+      </div>
+      <button id="options" class="icon" type="button" aria-label="Options" title="Options">
+        <span aria-hidden="true">⚙</span>
+      </button>
+    </header>
+
+    <section class="meta">
+      <span id="sourceBadge" class="badge" aria-live="polite">detecting…</span>
+      <span id="pageTitle" class="page-title"></span>
+    </section>
+
+    <section id="idle" class="pane" aria-label="Ready to capture">
+      <button id="capture" class="primary" type="button" aria-describedby="captureHint">
+        Capture this page
+      </button>
+      <p class="hint" id="captureHint">
+        Works on articles, Facebook posts, Twitter/X posts and Reddit threads.
+      </p>
+      <div id="hostHint" class="notice hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="loading" class="pane hidden" role="status" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="hint">Extracting…</p>
+    </section>
+
+    <section id="error" class="pane hidden" aria-label="Capture failed">
+      <div class="alert" id="errorText" role="alert"></div>
+      <button id="retry" class="ghost" type="button">Try again</button>
+    </section>
+
+    <section id="preview" class="pane hidden" aria-label="Clip preview">
+      <div class="row">
+        <input
+          id="notePath"
+          class="path"
+          spellcheck="false"
+          aria-label="Note path"
+        />
+      </div>
+      <div class="stats" id="stats"></div>
+      <textarea id="markdown" spellcheck="false" aria-label="Markdown content"></textarea>
+      <div class="actions">
+        <button id="save" class="primary" type="button">Save to vault</button>
+        <button
+          id="download"
+          class="ghost"
+          type="button"
+          aria-label="Download Markdown file"
+          title="Save the .md file to your Downloads folder"
+        >
+          .md
+        </button>
+        <button
+          id="copy"
+          class="ghost"
+          type="button"
+          aria-label="Copy Markdown"
+          title="Copy Markdown"
+        >
+          Copy
+        </button>
+      </div>
+      <div class="actions secondary">
+        <button
+          id="pdf"
+          class="ghost"
+          type="button"
+          aria-label="Render note as PDF"
+          title="Render this note as a clean A4 PDF (needs the local service)"
+        >
+          PDF
+        </button>
+        <button
+          id="pagePdf"
+          class="ghost"
+          type="button"
+          aria-label="Print the live page as PDF"
+          title="Print the live page exactly as it renders"
+        >
+          Page PDF
+        </button>
+        <button
+          id="img"
+          class="ghost"
+          type="button"
+          aria-label="Capture a full-page screenshot"
+          title="Full-page screenshot"
+        >
+          IMG
+        </button>
+        <button
+          id="html"
+          class="ghost"
+          type="button"
+          aria-label="Save a self-contained HTML archive"
+          title="Self-contained HTML archive with inlined images"
+        >
+          HTML
+        </button>
+      </div>
+      <div id="saved" class="notice hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

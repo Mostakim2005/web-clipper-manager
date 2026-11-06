@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Web Clipper Manager — Visual Guide</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #131c2e;
+    --surface-2: #1b2740;
+    --border: #2b3a55;
+    --text: #eef2f8;
+    --muted: #a7b4c9;
+    --accent: #7cc4ff;
+    --accent-ink: #041520;
+    --ok: #6ee7a8;
+    --warn: #f5c06b;
+    --danger: #ff8f8f;
+    --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface-2: #eef2f8;
+    --border: #cfd8e6;
+    --text: #0e1726;
+    --muted: #4d5b70;
+    --accent: #0b5fa5;
+    --accent-ink: #ffffff;
+    --ok: #0f6b3d;
+    --warn: #8a5300;
+    --danger: #a11d1d;
+    --shadow: 0 4px 14px rgba(16, 28, 48, 0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px 20px 64px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 22px; }
+  .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; color: var(--accent); letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .meta-line { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
+  button { font: inherit; }
+  .theme-btn, .toolbar input {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+  }
+  .theme-btn { cursor: pointer; font-weight: 600; white-space: nowrap; }
+  .theme-btn:hover { border-color: var(--accent); }
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 18px 0 20px; }
+  .toolbar input { flex: 1 1 260px; min-width: 200px; }
+  .toolbar input:focus-visible, .theme-btn:focus-visible, .tab-btn:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  .count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+  .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .tab-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.93rem;
+  }
+  .tab-btn:hover { border-color: var(--accent); }
+  .tab-btn[aria-selected="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .panel[hidden] { display: none; }
+  .panel { animation: fade 160ms ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+
+  .lede {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .lede p { margin: 0 0 10px; }
+  .lede p:last-child { margin-bottom: 0; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .slug { font-weight: 700; font-size: 0.98rem; color: var(--text); word-break: break-word; }
+  .badge {
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+  .b-feature { color: var(--ok); }
+  .b-wishlist { color: var(--warn); }
+  .b-human { color: var(--accent); }
+  .b-agent { color: var(--ok); }
+  .b-trap { color: var(--danger); }
+  .summary { color: var(--accent); font-size: 0.9rem; border-left: 3px solid var(--accent); padding-left: 10px; }
+  .card p { margin: 0; font-size: 0.9rem; color: var(--text); }
+  .card p.k { color: var(--muted); }
+  .card p.k strong { color: var(--text); }
+  .anchor {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.78rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--muted);
+    word-break: break-all;
+    margin-top: auto;
+  }
+  .bm-head { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .empty { color: var(--muted); padding: 28px; text-align: center; border: 1px dashed var(--border); border-radius: 10px; }
+
+  h2 { font-size: 1.15rem; margin: 26px 0 12px; }
+  h2:first-child { margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.86em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 16px; overflow-x: auto; box-shadow: var(--shadow); }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; min-width: 680px; }
+  .flow-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .flow-box-accent { fill: var(--surface-2); stroke: var(--accent); stroke-width: 2; }
+  .flow-label { fill: var(--text); font-size: 13px; font-weight: 600; font-family: system-ui, sans-serif; }
+  .flow-sub { fill: var(--muted); font-size: 11px; font-family: system-ui, sans-serif; }
+  .flow-line { stroke: var(--muted); stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+  .flow-band { fill: none; stroke: var(--border); stroke-width: 1.5; stroke-dasharray: 5 4; rx: 12; }
+  .band-label { fill: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; font-family: system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="title-row">
+      <div>
+        <h1>Web Clipper Manager</h1>
+        <p class="subtitle">Visual map of intentions, architecture, decisions and landmines.</p>
+      </div>
+      <button class="theme-btn" id="themeBtn" type="button" aria-live="polite">Light mode</button>
+    </div>
+    <p class="meta-line">Generated from <code>docs/PRODUCT.md</code>, <code>docs/ARCHITECTURE.md</code> and <code>docs/DECISIONS_AND_TRAPS.md</code>. Mermaid source for these diagrams lives in those files; this page is self-contained and works offline.</p>
+  </header>
+
+  <div class="toolbar">
+    <label for="filter" class="visually-hidden" style="position:absolute;left:-9999px;">Filter cards</label>
+    <input id="filter" type="search" placeholder="Filter by keyword — e.g. facebook, pdf, vault, trap" autocomplete="off" />
+    <span class="count" id="count" role="status" aria-live="polite"></span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button class="tab-btn" role="tab" id="tab-intent" aria-controls="panel-intent" aria-selected="true" data-panel="panel-intent">1. Intent</button>
+    <button class="tab-btn" role="tab" id="tab-features" aria-controls="panel-features" aria-selected="false" data-panel="panel-features" tabindex="-1">2. Features</button>
+    <button class="tab-btn" role="tab" id="tab-arch" aria-controls="panel-arch" aria-selected="false" data-panel="panel-arch" tabindex="-1">3. Architecture</button>
+    <button class="tab-btn" role="tab" id="tab-decisions" aria-controls="panel-decisions" aria-selected="false" data-panel="panel-decisions" tabindex="-1">4. Decisions</button>
+    <button class="tab-btn" role="tab" id="tab-traps" aria-controls="panel-traps" aria-selected="false" data-panel="panel-traps" tabindex="-1">5. Landmines</button>
+    <button class="tab-btn" role="tab" id="tab-removed" aria-controls="panel-removed" aria-selected="false" data-panel="panel-removed" tabindex="-1">6. Removed</button>
+  </div>
+
+  <!-- 1. INTENT -->
+  <section class="panel" id="panel-intent" role="tabpanel" aria-labelledby="tab-intent" tabindex="0">
+    <div class="lede">
+      <p><strong>What it does.</strong> Takes the page you are looking at — an article, a Facebook post, a Twitter/X post, a Reddit thread, and later a YouTube video or Telegram channel message — and saves it into Obsidian as one note in one consistent shape. The same capture can also leave as a PDF, a full-page PNG/JPEG, or a single self-contained HTML file.</p>
+      <p><strong>Who it is for.</strong> One person, one vault, one dedicated folder.</p>
+      <p><strong>How it must feel.</strong> Click, glance at the preview, save. No account, no sign-in, no telemetry, no cloud round-trip. When the local service is off it degrades politely instead of failing, and a note is never silently half-written or silently overwritten.</p>
+      <p><strong>What it deliberately is not.</strong> The job ends when the note is written. Search, tagging, highlights, reading status, filing and AI all happen downstream in the owner's own workflow.</p>
+    </div>
+
+    <h2>The one idea</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 900 340" role="img" aria-label="Six sources feed one Clip object, which feeds one renderer and four output formats.">
+        <defs>
+          <marker id="arrowI" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+          </marker>
+        </defs>
+        <g color="var(--muted)">
+          <rect class="flow-box" x="20" y="30" width="180" height="40" rx="8"/><text class="flow-label" x="110" y="55" text-anchor="middle">Article</text>
+          <rect class="flow-box" x="20" y="80" width="180" height="40" rx="8"/><text class="flow-label" x="110" y="105" text-anchor="middle">Facebook post</text>
+          <rect class="flow-box" x="20" y="130" width="180" height="40" rx="8"/><text class="flow-label" x="110" y="155" text-anchor="middle">Twitter / X post</text>
+          <rect class="flow-box" x="20" y="180" width="180" height="40" rx="8"/><text class="flow-label" x="110" y="205" text-anchor="middle">Reddit thread</text>
+          <rect class="flow-box" x="20" y="230" width="180" height="40" rx="8" stroke-dasharray="4 3"/><text class="flow-label" x="110" y="255" text-anchor="middle">YouTube video</text>
+          <rect class="flow-box" x="20" y="280" width="180" height="40" rx="8" stroke-dasharray="4 3"/><text class="flow-label" x="110" y="305" text-anchor="middle">Telegram channel</text>
+
+          <path class="flow-line" d="M200 50 H262"/>
+          <path class="flow-line" d="M200 100 H262"/>
+          <path class="flow-line" d="M200 150 H262"/>
+          <path class="flow-line" d="M200 200 H262"/>
+          <path class="flow-line" d="M200 250 H262"/>
+          <path class="flow-line" d="M200 300 H262"/>
+
+          <rect class="flow-box-accent" x="262" y="115" width="180" height="120" rx="12"/>
+          <text class="flow-label" x="352" y="160" text-anchor="middle">One Clip object</text>
+          <text class="flow-sub" x="352" y="180" text-anchor="middle">same shape for every source</text>
+          <text class="flow-sub" x="352" y="198" text-anchor="middle">body holds @@IMG:n@@ tokens</text>
+
+          <path class="flow-line" d="M442 175 H512"/>
+          <rect class="flow-box-accent" x="512" y="145" width="150" height="60" rx="10"/>
+          <text class="flow-label" x="587" y="172" text-anchor="middle">One renderer</text>
+          <text class="flow-sub" x="587" y="190" text-anchor="middle">renderNote</text>
+
+          <path class="flow-line" d="M662 175 H720"/>
+          <rect class="flow-box" x="720" y="30" width="160" height="36" rx="8"/><text class="flow-label" x="800" y="53" text-anchor="middle">Markdown</text>
+          <rect class="flow-box" x="720" y="92" width="160" height="36" rx="8"/><text class="flow-label" x="800" y="115" text-anchor="middle">PDF</text>
+          <rect class="flow-box" x="720" y="154" width="160" height="36" rx="8"/><text class="flow-label" x="800" y="177" text-anchor="middle">PNG / JPEG</text>
+          <rect class="flow-box" x="720" y="216" width="160" height="36" rx="8"/><text class="flow-label" x="800" y="239" text-anchor="middle">HTML archive</text>
+          <path class="flow-line" d="M800 145 V92"/><path class="flow-line" d="M800 145 V30"/>
+          <path class="flow-line" d="M800 205 V216"/><path class="flow-line" d="M800 205 V154"/>
+          <text class="flow-sub" x="800" y="285" text-anchor="middle">four formats only</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 2. FEATURES -->
+  <section class="panel" id="panel-features" role="tabpanel" aria-labelledby="tab-features" tabindex="0" hidden>
+    <h2>Active features — do not break</h2>
+    <div class="grid" id="featuresGrid"></div>
+    <h2>Planned — wishlist</h2>
+    <div class="grid" id="wishlistGrid"></div>
+  </section>
+
+  <!-- 3. ARCHITECTURE -->
+  <section class="panel" id="panel-arch" role="tabpanel" aria-labelledby="tab-arch" tabindex="0" hidden>
+    <h2>System map</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 940 400" role="img" aria-label="The page-side content script builds a Clip, the background worker resolves tokens and renders, and the local service writes to the vault.">
+        <g color="var(--muted)">
+          <rect class="flow-band" x="16" y="16" width="290" height="368" rx="12"/>
+          <text class="band-label" x="32" y="40">BROWSER PAGE · CONTENT SCRIPT</text>
+          <rect class="flow-box" x="40" y="58" width="242" height="38" rx="8"/><text class="flow-label" x="161" y="82" text-anchor="middle">detectSource</text>
+          <rect class="flow-box" x="40" y="110" width="242" height="38" rx="8"/><text class="flow-label" x="161" y="134" text-anchor="middle">Source adapter</text>
+          <rect class="flow-box-accent" x="40" y="162" width="242" height="52" rx="8"/>
+          <text class="flow-label" x="161" y="184" text-anchor="middle">Clip object</text>
+          <text class="flow-sub" x="161" y="202" text-anchor="middle">body holds @@IMG:n@@ tokens</text>
+          <path class="flow-line" d="M161 96 V110"/>
+          <path class="flow-line" d="M161 148 V162"/>
+
+          <rect class="flow-band" x="330" y="16" width="300" height="368" rx="12"/>
+          <text class="band-label" x="346" y="40">BACKGROUND WORKER</text>
+          <rect class="flow-box-accent" x="356" y="58" width="248" height="38" rx="8"/><text class="flow-label" x="480" y="82" text-anchor="middle">buildNote</text>
+          <rect class="flow-box" x="356" y="110" width="248" height="38" rx="8"/><text class="flow-label" x="480" y="134" text-anchor="middle">resolve tokens</text>
+          <rect class="flow-box" x="356" y="162" width="248" height="38" rx="8"/><text class="flow-label" x="480" y="186" text-anchor="middle">renderNote</text>
+          <rect class="flow-box" x="356" y="214" width="248" height="38" rx="8"/><text class="flow-label" x="480" y="238" text-anchor="middle">persist / export</text>
+          <path class="flow-line" d="M480 96 V110"/>
+          <path class="flow-line" d="M480 148 V162"/>
+          <path class="flow-line" d="M480 200 V214"/>
+
+          <rect class="flow-band" x="654" y="16" width="270" height="368" rx="12"/>
+          <text class="band-label" x="670" y="40">LOCAL SERVICE · 127.0.0.1:8787</text>
+          <rect class="flow-box" x="678" y="58" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="80" text-anchor="middle">opSave</text>
+          <rect class="flow-box" x="678" y="104" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="126" text-anchor="middle">writeAssets</text>
+          <rect class="flow-box" x="678" y="150" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="172" text-anchor="middle">opPdf</text>
+          <rect class="flow-box" x="678" y="196" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="218" text-anchor="middle">opSaveHtml</text>
+          <rect class="flow-box" x="678" y="242" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="264" text-anchor="middle">opSaveBinary</text>
+          <rect class="flow-box" x="678" y="288" width="222" height="34" rx="8"/><text class="flow-label" x="789" y="310" text-anchor="middle">opPickFolder</text>
+          <text class="flow-sub" x="789" y="352" text-anchor="middle">writes into the vault,</text>
+          <text class="flow-sub" x="789" y="368" text-anchor="middle">refuses paths that escape it</text>
+
+          <path class="flow-line" d="M282 188 H356"/>
+          <text class="flow-sub" x="318" y="180" text-anchor="middle">message</text>
+          <path class="flow-line" d="M604 233 H678"/>
+        </g>
+      </svg>
+    </div>
+
+    <h2>Subsystems</h2>
+    <div class="grid" id="subGrid"></div>
+
+    <h2>Verification commands</h2>
+    <table>
+      <thead><tr><th>Command</th><th>What it proves</th></tr></thead>
+      <tbody>
+        <tr><td><code>npm run test:all</code></td><td>Syntax, accessibility, extraction/render and service suites — 106 assertions. Must pass before claiming work is done.</td></tr>
+        <tr><td><code>npm run test:pdf</code></td><td>A real PDF comes out of the installed Edge/Chrome. jsdom cannot prove this.</td></tr>
+        <tr><td><code>npm run test:syntax</code></td><td>Every extension file parses and every manifest reference resolves.</td></tr>
+        <tr><td><code>npm run test:a11y</code></td><td>Accessible names, control labels, live regions, unique ids, script-to-markup wiring.</td></tr>
+        <tr><td><code>npm test</code></td><td>Real Readability + Turndown in jsdom against fixtures, plus a full clip-to-note render.</td></tr>
+        <tr><td><code>npm run test:service</code></td><td>Boot, save, traversal guard, failed images, backup, HTML inlining, binary writes.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4. DECISIONS -->
+  <section class="panel" id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" tabindex="0" hidden>
+    <h2>What we chose, and what failed first</h2>
+    <div class="grid" id="decisionGrid"></div>
+  </section>
+
+  <!-- 5. TRAPS -->
+  <section class="panel" id="panel-traps" role="tabpanel" aria-labelledby="tab-traps" tabindex="0" hidden>
+    <h2>Do not touch</h2>
+    <div class="grid" id="trapGrid"></div>
+  </section>
+
+  <!-- 6. REMOVED -->
+  <section class="panel" id="panel-removed" role="tabpanel" aria-labelledby="tab-removed" tabindex="0" hidden>
+    <h2>Deliberately removed — do not re-add</h2>
+    <p class="subtitle" style="margin-bottom:14px;">Considered and cut. These are not easy wins, and they must not reappear in a roadmap.</p>
+    <table>
+      <thead><tr><th>Category</th><th>Removed</th><th>Why</th></tr></thead>
+      <tbody id="removedBody"></tbody>
+    </table>
+  </section>
+
+</div>
+
+<script>
+  "use strict";
+
+  const FEATURES = [
+    { slug: "Single-Clip-Model-One-Renderer", aliases: "same format, one note shape, Clip object, adapter, normalised", summary: "Every source becomes one identical Clip object rendered by exactly one function.", intent: "A Reddit thread and a Twitter post must land looking like siblings. Adding a source costs one adapter, never a second renderer.", anchor: "extension/src/lib/render.js -> renderNote" },
+    { slug: "Web-Article-Clipping", aliases: "Readability, blog post, news article, main content", summary: "Pulls the readable body out of any article, dropping menus, ads and comments.", intent: "Title, author, date, body, images, code, lists and quotes survive; page furniture does not.", anchor: "extension/src/content/extract.js -> extractArticle" },
+    { slug: "Facebook-Post-Clipping", aliases: "FB, timestamp, photos, See more", summary: "Captures one post's text, author, timestamp and photos, and unwraps redirect links.", intent: "Only the post being viewed — never the comment thread, never the feed. Photos sit outside the text block and must not be lost.", anchor: "extension/src/content/extract.js -> extractFacebook" },
+    { slug: "Twitter-X-Post-Clipping", aliases: "tweet, X, FxTwitter, handle, avatar", summary: "Captures text, author, handle, avatar, date, full-resolution images and engagement.", intent: "Highest available image resolution, not the timeline thumbnail. Falls back to the visible page and says so.", anchor: "extension/src/content/extract.js -> extractTwitter" },
+    { slug: "Reddit-Thread-Clipping", aliases: "subreddit, comments, gallery, upvotes", summary: "Captures a post with gallery images and the top comment branches, delimited and capped.", intent: "Depth is capped at 25 branches and the note states when it was truncated instead of pretending otherwise.", anchor: "extension/src/content/extract.js -> extractReddit" },
+    { slug: "Stable-Note-Identity", aliases: "omni id, hash, dedupe key, same page same note", summary: "Every note carries id: omni-<hash of the canonical URL>, so the same page always yields the same ID.", intent: "Re-clipping a page must be recognisably the same note downstream. The ID is a stable handle for Dataview and Bases.", anchor: "extension/src/lib/render.js -> clipId" },
+    { slug: "Obsidian-Vault-Writing", aliases: "save to vault, local service, loopback, 8787", summary: "Writes the note into the vault through a local service, backing up hand-edited files.", intent: "Silent data loss is unacceptable. A hand-edited note is backed up first; a path that leaves the vault is refused.", anchor: "local-service/host.js -> opSave" },
+    { slug: "Vault-Folder-Pickers", aliases: "browse, folder dialog, choose vault", summary: "Native folder dialogs pick the vault, notes folder and attachments folder.", intent: "Picking folders must not require knowing or typing absolute paths.", anchor: "local-service/host.js -> opPickFolder" },
+    { slug: "Attachment-Placement-Layouts", aliases: "assets folder, image location, collocated, per-note folder", summary: "Images live in one shared folder, a subfolder beside each note's folder, or next to the note.", intent: "The owner's vault convention decides where images go, not the tool.", anchor: "extension/src/lib/render.js -> attachmentDir" },
+    { slug: "Image-Embed-Style", aliases: "wikilink, markdown embed, width", summary: "Images embed as Obsidian wikilinks with optional width, or as standard Markdown links.", intent: "Wikilinks must resolve from anywhere in the vault; Markdown must resolve relative to the note for portability.", anchor: "extension/src/lib/render.js -> normalizeImageLinks" },
+    { slug: "Note-PDF-Export", aliases: "print note, A4, pdf of the note", summary: "Renders the note as a clean A4 PDF with images inlined.", intent: "The PDF must look like the note, not the web page, and open on a machine with no vault access.", anchor: "extension/src/background.js -> renderPdfHtml" },
+    { slug: "Live-Page-PDF-Export", aliases: "page pdf, print page, printToPDF", summary: "Prints the live page through the browser's own print pipeline.", intent: "Sometimes the page layout is what matters, so this path must not go through the Markdown renderer.", anchor: "extension/src/background.js -> printPagePdf" },
+    { slug: "Full-Page-Screenshot", aliases: "png, jpeg, capture beyond viewport, long screenshot", summary: "Saves the whole page, not the viewport, as PNG or JPEG.", intent: "Pages too tall to render are capped and the note says so rather than failing.", anchor: "extension/src/background.js -> captureFullPage" },
+    { slug: "Self-Contained-HTML-Archive", aliases: "single file html, inline images, portable archive", summary: "One portable .html with every image embedded.", intent: "The archive must survive the vault moving, the service being off, and the original URLs expiring.", anchor: "extension/src/background.js -> renderArchiveHtml" },
+    { slug: "Markdown-Download-And-Clipboard", aliases: ".md file, copy markdown, save locally", summary: "The note leaves as a downloaded .md file or straight onto the clipboard.", intent: "This is the floor of the product: with nothing configured it still produces usable Markdown.", anchor: "extension/src/pages/popup.js -> download" },
+    { slug: "Quick-Clip-Context-Menu", aliases: "right click, silent clip, badge", summary: "Right-click clips the page silently using saved settings.", intent: "The fast path stays fast: no dialog, no preview, no confirmation.", anchor: "extension/src/background.js -> handle" },
+    { slug: "Editable-Preview-Popup", aliases: "preview, edit before saving, markdown editor", summary: "Shows the finished note as editable Markdown before it is written.", intent: "The capture is a draft, not a verdict. Whatever is in the box is what gets saved.", anchor: "extension/src/pages/popup.js -> capture" },
+    { slug: "Settings-And-Notes-Shape-Options", aliases: "options page, settings, filename template, toggles", summary: "One options page controls vault, folders, filename template, attachment mode, embed style and callouts.", intent: "Every choice that changes the emitted note must be visible and reversible in one place.", anchor: "extension/src/lib/settings.js -> DEFAULTS" },
+    { slug: "Accessible-Interface", aliases: "a11y, keyboard, screen reader, focus ring, WCAG", summary: "Both pages are keyboard and screen-reader operable, enforced by a test.", intent: "Every control has a name, every async status is announced, focus is always visible. A regression is a bug, not polish.", anchor: "test/a11y-check.js -> check" },
+    { slug: "Local-Only-Privacy", aliases: "offline, no telemetry, no account, private", summary: "Nothing leaves the machine: no accounts, no analytics, no cloud, no remote code.", intent: "Captures may contain private posts. The only outbound traffic is what the page itself already makes.", anchor: "extension/manifest.json -> permissions" },
+    { slug: "Graceful-Degradation", aliases: "partial capture, warning callout, works without service", summary: "Missing pieces are reported in the note instead of failing the capture.", intent: "A partial note that admits it is partial beats a blank note or a silent failure.", anchor: "extension/src/lib/render.js -> renderNote" }
+  ];
+
+  const WISHLIST = [
+    { slug: "YouTube-Video-Clipping", aliases: "youtube, video, transcript, chapters, duration", summary: "Metadata, description, thumbnail and timestamped transcript as one note.", intent: "Video must land in the same shape as every other source.", anchor: "blocked: SCOPE.md questions 2 and 3", extra: "Both answers change the emitted note, so the adapter waits." },
+    { slug: "Telegram-Channel-Clipping", aliases: "telegram, t.me, public channel, message id", summary: "Capture a message from a public channel page into the same format.", intent: "One note per capture; public channel pages only, no login, no chat export.", anchor: "blocked: SCOPE.md question 4", extra: "May need an append/merge mode that does not exist in the pipeline." },
+    { slug: "Per-Site-Note-Format-Spec", aliases: "obsidian format, folder layout, frontmatter schema", summary: "The owner's precise per-source layout, replacing the provisional renderer.", intent: "The note shape is the owner's decision, not the tool's.", anchor: "extension/src/lib/render.js -> renderNote", extra: "Renderer is frozen until this arrives, and revised in one pass with its tests." },
+    { slug: "Selection-Clip", aliases: "highlight to clip, selected text", summary: "Clip only the selected text instead of the whole capture.", intent: "Not every page is worth keeping whole.", anchor: "reuses -> OC.htmlToMarkdown", extra: "Selection range clone into the existing Turndown path." },
+    { slug: "Element-Picker-And-Element-Screenshot", aliases: "click to capture, hover overlay, subtree", summary: "Hover to highlight one block, then capture just that part.", intent: "For pages where the useful content is one block, not the document.", anchor: "reuses -> resolveBodyTokens", extra: "A content-script overlay feeding the existing build path." },
+    { slug: "Keyboard-Shortcut", aliases: "hotkey, accelerator, bind key", summary: "Trigger a clip from the keyboard instead of the popup or menu.", intent: "Remove the last two clicks from the fast path.", anchor: "extension/manifest.json -> commands", extra: "Dispatched through the existing handle switch." },
+    { slug: "Side-Panel-Reader", aliases: "sidebar, reader view, split view", summary: "A persistent side panel showing the captured note beside the page.", intent: "Read and clip without the popup closing on every click elsewhere.", anchor: "extension/src/pages/popup.html", extra: "Reuses the existing popup panes in a side-panel surface." },
+    { slug: "Shadow-DOM-And-Iframe-Capture", aliases: "web components, nested frames, missing content", summary: "Reach content inside shadow roots or iframes, currently invisible to extractors.", intent: "Some sites render their article body where the extractor cannot see it.", anchor: "extension/src/content/lib.js -> OC.stashImages", extra: "Extend the DOM walk before tokens are emitted." },
+    { slug: "Paywall-And-Login-Detection", aliases: "blocked page, subscribe wall, not logged in", summary: "Recognise a wall rather than an article, and say so.", intent: "A clear 'this page is paywalled' beats a note containing three paragraphs and an advert.", anchor: "extension/src/content/extract.js -> OC.extract", extra: "Reported through the existing completeness field." }
+  ];
+
+  const SUBSYSTEMS = [
+    { slug: "Clip-Model-And-Token-Pipeline", aliases: "@@IMG tokens, one object, adapter, placeholder", summary: "Adapters fill one Clip whose body holds @@IMG:n@@ placeholders; the privileged layer decides what each becomes.", anchor: "extension/src/lib/render.js -> resolveBodyTokens" },
+    { slug: "Source-Adapters", aliases: "extractor, article, facebook, twitter, reddit, detector", summary: "One self-contained function per source turns a page into a Clip; no adapter emits Markdown.", anchor: "extension/src/content/extract.js -> OC.detectSource" },
+    { slug: "Note-Renderer", aliases: "renderNote, frontmatter, yaml, filename, callouts", summary: "One pure function turns a Clip plus settings into finished note text, filename and callouts.", anchor: "extension/src/lib/render.js -> renderNote" },
+    { slug: "Loopback-Service-And-Vault-Writes", aliases: "host.js, 8787, save op, traversal guard, backup", summary: "A local HTTP service writes notes and images, refusing paths that escape the vault and backing up hand edits.", anchor: "local-service/host.js -> opSave" },
+    { slug: "Asset-URI-Export-Contract", aliases: "asset scheme, inlining, data uri, export bridge", summary: "asset://name is the one reference format shared by the note PDF and the HTML archive.", anchor: "local-service/host.js -> inlineAssetRefs" },
+    { slug: "Privileged-Capture-Via-Debugger", aliases: "captureBeyondViewport, printToPDF, debugger attach, full page", summary: "Full-page screenshots and live-page PDFs borrow a per-operation debugger session, always detached.", anchor: "extension/src/background.js -> withDebugger" },
+    { slug: "Message-Routing-And-Command-Surface", aliases: "handle, PING, EXTRACT, message bridge, commands", summary: "Every action the UI can take arrives at one dispatcher owning the switch of supported operations.", anchor: "extension/src/background.js -> handle" },
+    { slug: "Three-Tier-Degradation", aliases: "extension only, offline fallback, partial, no service", summary: "The tool works in three increasingly capable tiers and never hard-fails into a blank note.", anchor: "extension/src/background.js -> hostStatus" }
+  ];
+
+  const DECISIONS = [
+    { slug: "Loopback-HTTP-Instead-Of-Native-Messaging", maker: "AGENT", summary: "Vault writes go through a small local HTTP service rather than native messaging.", failed: "Chrome launches native hosts via CreateProcess, which does not reliably run a .cmd wrapper, and the 1 MB message cap truncates screenshots.", works: "A Node service on 127.0.0.1:8787: any payload size, curl-debuggable, and able to open a real folder dialog.", anchor: "local-service/host.js -> startHttp" },
+    { slug: "One-Clip-Object-One-Renderer", maker: "AGENT", summary: "Adapters produce data, never Markdown; exactly one renderer turns data into a note.", failed: "Letting each adapter format its own output, which is how six sources become six incompatible note formats.", works: "One Clip shape and one renderNote, so adding a source costs one adapter and a format change happens in one file.", anchor: "extension/src/lib/render.js -> renderNote" },
+    { slug: "Image-Tokens-Resolved-Downstream", maker: "AGENT", summary: "The page emits @@IMG:n@@ placeholders; the privileged layer decides their final form.", failed: "Resolving images inside the content script — cross-origin fetches are refused and signed URLs expire.", works: "Emit tokens plus a manifest; the background resolves after settings load and the service downloads the bytes.", anchor: "extension/src/lib/render.js -> resolveBodyTokens" },
+    { slug: "Hand-Rolled-YAML-Serializer", maker: "AGENT", summary: "Frontmatter is serialised by a small hand-written function, not a generic YAML library.", failed: "A generic stringifier that broke on titles containing a colon and quotes, making notes invisible to Dataview.", works: "yamlScalar quotes reserved words and escapes deliberately while leaving safe slugs bare.", anchor: "extension/src/lib/render.js -> yamlScalar" },
+    { slug: "Backup-Instead-Of-Overwrite", maker: "AGENT", summary: "A hand-edited note is backed up before being replaced.", failed: "Silently overwriting, which quietly destroys annotations the owner added.", works: "Write a timestamped backup alongside, then write the new note. Merging was rejected as a diff policy that does not exist.", anchor: "local-service/host.js -> opSave" },
+    { slug: "Asset-URI-As-Export-Contract", maker: "AGENT", summary: "Exports reference images as asset://name, resolved to real bytes by the service.", failed: "Each exporter resolving images its own way — two paths, two sets of edge cases and divergent bugs.", works: "One asset:// scheme, resolved once, with path.basename guarding the name against traversal.", anchor: "local-service/host.js -> inlineAssetRefs" },
+    { slug: "Pinned-Extension-Identity", maker: "AGENT", summary: "A public key in the manifest gives the unpacked extension a constant ID.", failed: "A path-derived ID, where moving the folder silently creates a new extension with empty storage.", works: "Pinned key, constant ID deolmeeiaonpcokalgopkcihblojihlh, settings survive moves.", anchor: "extension/manifest.json -> key" },
+    { slug: "Accessibility-Asserted-In-Markup", maker: "AGENT", summary: "Accessibility is enforced by a test that reads the markup, not by inspection.", failed: "Eyeballing it, which caught nothing and left async status text announced to nobody.", works: "a11y-check asserts names, labels, live regions, unique ids and script-to-markup wiring. It caught a real regression.", anchor: "test/a11y-check.js -> check" },
+    { slug: "Obsidian-Note-Format-Frozen-Until-Specified", maker: "HUMAN", summary: "The renderer, frontmatter schema and folder layout are frozen until the owner's per-site spec arrives.", failed: "Improvising improvements now, which would be work the incoming spec overwrites, with adapters built to the wrong shape.", works: "Freeze for v1, fix bugs only, and hold the two remaining adapters until the five questions are answered.", anchor: "extension/src/lib/render.js -> renderNote" },
+    { slug: "Deliberately-Narrow-Scope", maker: "HUMAN", summary: "Six sources, four formats, two browsers — and pruning is permanent.", failed: "Adding whatever is easy; three of those were agent suggestions the owner explicitly rejected.", works: "A written out-of-scope list a future session reads before proposing anything.", anchor: "SCOPE.md -> Out of scope" }
+  ];
+
+  const TRAPS = [
+    { slug: "Content-Script-Load-Order", summary: "Never reorder, lazy-load or module-ise the content scripts.", why: "MV3 content scripts cannot be ES modules and there is no bundler, so lib.js attaches OC helpers to the global before extract.js uses them. Reordering fails at capture time with an unhelpful error, not at load time.", anchor: "extension/manifest.json -> content_scripts" },
+    { slug: "Never-Leave-The-Debugger-Attached", summary: "Never attach the debugger without a finally detach.", why: "A leaked session leaves a permanent banner, blocks the next attach, and stops DevTools opening. Attach also fails when DevTools is already open, so the code must fall back rather than throw.", anchor: "extension/src/background.js -> withDebugger" },
+    { slug: "Path-Traversal-Guards", summary: "Never join a caller-supplied path without the vault guard.", why: "The guard is the only thing between a malformed path containing '..' and writes outside the vault. It is covered by a test, so removing it fails the suite rather than quietly weakening the boundary.", anchor: "local-service/host.js -> assertInside" },
+    { slug: "Service-Must-Bind-Loopback-Only", summary: "Never bind the service to 0.0.0.0 or widen its CORS origins.", why: "The service writes files with no authentication because it assumes it is unreachable from the network. Binding it wider turns an unauthenticated write endpoint into a network service.", anchor: "local-service/host.js -> startHttp" },
+    { slug: "Omni-Prefix-Is-Data-Not-Branding", summary: "Never rename the omni- prefix on note IDs or asset filenames.", why: "The product was renamed to Web Clipper Manager, but the prefix is stored in thousands of existing notes and attachment names. Changing it orphans every reference and breaks 'same page, same ID' for notes already written.", anchor: "extension/src/lib/render.js -> clipId" },
+    { slug: "Editing-Source-Files-With-PowerShell-Defaults", summary: "Never rewrite these source files with Set-Content or Out-File defaults.", why: "Windows PowerShell decodes UTF-8 as ANSI, so a read/write round trip turned em dashes and arrows into mojibake and added a BOM. It happened once while renaming for this repository.", anchor: "local-service/host.js" },
+    { slug: "Adapters-Must-Not-Emit-Markdown", summary: "Never let an adapter build note text.", why: "The moment one adapter formats its own output, 'the same format for every source' stops being true, and every format change becomes a hunt through four adapters.", anchor: "extension/src/content/extract.js -> extractArticle" },
+    { slug: "Renderer-Frozen-Pending-Owner-Spec", summary: "Never redesign the note format before the owner's spec arrives.", why: "The format is provisional by the owner's decision. A redesign now is work the incoming spec overwrites, and adapters written against a guessed shape must be retrofitted.", anchor: "extension/src/lib/render.js -> renderNote" },
+    { slug: "Rejected-Features-Are-Not-Easy-Wins", summary: "Never re-propose Bluesky, Mastodon, Notion, JSON export, Safari or Firefox.", why: "Several were agent suggestions the owner considered and rejected. Each adds a permanent failure mode to a tool whose value is that it is small and finished.", anchor: "SCOPE.md -> Out of scope" },
+    { slug: "Facebook-Extraction-Is-Heuristic", summary: "Never depend on Facebook's generated class names.", why: "Facebook randomises classes, A/B tests layouts and serves expiring signed image URLs. The adapter scores [role=article] structure on purpose. Periodic maintenance is expected, not a bug.", anchor: "extension/src/content/extract.js -> scoreFacebookArticle" },
+    { slug: "Storage-Key-Rename-Breaks-Settings", summary: "Never rename a settings key in DEFAULTS without migrating.", why: "Settings live in chrome.storage.sync under those literal names. Renaming a key does not rename stored data — it silently falls back to a default, so the owner's vault path appears to vanish.", anchor: "extension/src/lib/settings.js -> DEFAULTS" }
+  ];
+
+  const REMOVED = [
+    ["Sources", "Bluesky, Mastodon, Hacker News, LinkedIn, Instagram, Threads, WhatsApp, Slack, Discord", "Not used by the owner; three were agent suggestions explicitly rejected."],
+    ["Output formats", "JSON, CSV, EPUB, DOCX, WARC, MHTML, Notion, Logseq, Joplin, Zotero/BibTeX", "A clipper, not an exporter pipeline. Four formats only."],
+    ["Destinations", "WebDAV, S3, Git, Obsidian URI", "One local vault, one path."],
+    ["Organisation", "Search, tags, collections, smart folders, highlights, reading status, duplicate clusters, link-rot checks, vault encryption", "Done in-house downstream. Filing logic here would split the source of truth."],
+    ["Automation & AI", "REST API, CLI, webhooks, MCP server, summarising, auto-tagging, semantic search, template authoring", "The owner handles this in-house."],
+    ["Browsers", "Safari, Firefox", "Edge and Chrome only."],
+    ["Localisation", "i18n, RTL", "Single user, single language."],
+    ["Capture extras", "Batch-all-tabs, auto-clip rules, page watch/diff, mobile share sheet", "These are automation, which is out of scope."]
+  ];
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function card(type, label, item) {
+    const badge = '<span class="badge b-' + type + '">' + esc(label) + "</span>";
+    let body = "";
+    if (item.summary) {
+      body += '<div class="summary">1-Line Summary: ' + esc(item.summary) + "</div>";
+    }
+    if (item.intent) {
+      body += "<p><strong>User intention:</strong> " + esc(item.intent) + "</p>";
+    }
+    if (item.failed) {
+      body += '<p class="k"><strong>What failed first:</strong> ' + esc(item.failed) + "</p>";
+    }
+    if (item.works) {
+      body += '<p class="k"><strong>What works instead:</strong> ' + esc(item.works) + "</p>";
+    }
+    if (item.why) {
+      body += '<p class="k"><strong>Why:</strong> ' + esc(item.why) + "</p>";
+    }
+    if (item.extra) {
+      body += '<p class="k">' + esc(item.extra) + "</p>";
+    }
+    const tail = item.anchor ? '<div class="anchor">Code Anchor: ' + esc(item.anchor) + "</div>" : "";
+    const search = [item.slug, item.aliases, item.summary, item.intent, item.failed, item.works, item.why, item.extra, item.anchor].join(" ").toLowerCase();
+    return (
+      '<article class="card" data-search="' + esc(search) + '">' +
+      '<div class="card-head"><span class="slug">[' + esc(label.replace(/^./, label[0].toUpperCase())) + ": " + esc(item.slug) + "]</span>" + badge + "</div>" +
+      body + tail +
+      "</article>"
+    );
+  }
+
+  function renderAll() {
+    document.getElementById("featuresGrid").innerHTML = FEATURES.map(f => card("feature", "FEATURE", f)).join("");
+    document.getElementById("wishlistGrid").innerHTML = WISHLIST.map(f => card("wishlist", "WISHLIST", f)).join("");
+    document.getElementById("subGrid").innerHTML = SUBSYSTEMS.map(f => card("human", "SUBSYSTEM", f)).join("");
+    document.getElementById("decisionGrid").innerHTML = DECISIONS.map(d =>
+      card("human", "DECISION", d).replace('<span class="badge b-human">DECISION</span>', "")
+    ).join("");
+    document.getElementById("trapGrid").innerHTML = TRAPS.map(f => card("trap", "TRAP", f)).join("");
+    document.getElementById("removedBody").innerHTML = REMOVED.map(r =>
+      "<tr><td><strong>" + esc(r[0]) + "</strong></td><td>" + esc(r[1]) + "</td><td>" + esc(r[2]) + "</td></tr>"
+    ).join("");
+  }
+
+  // Decisions need their maker badge, so build them separately.
+  function renderDecisions() {
+    document.getElementById("decisionGrid").innerHTML = DECISIONS.map(function (d) {
+      const mk = d.maker === "HUMAN"
+        ? '<span class="badge b-human">DECIDED BY: HUMAN</span>'
+        : '<span class="badge b-agent">DECIDED BY: AGENT</span>';
+      return card("agent", "DECISION", d).replace('<span class="badge b-agent">DECISION</span>', mk);
+    }).join("");
+  }
+
+  renderAll();
+  renderDecisions();
+
+  // Tabs
+  const tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function selectTab(tab) {
+    tabs.forEach(function (t) {
+      const on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.dataset.panel).hidden = !on;
+    });
+    applyFilter();
+  }
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () { selectTab(tab); });
+    tab.addEventListener("keydown", function (e) {
+      const i = tabs.indexOf(tab);
+      let next = null;
+      if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
+      if (e.key === "ArrowLeft") next = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (e.key === "Home") next = tabs[0];
+      if (e.key === "End") next = tabs[tabs.length - 1];
+      if (next) { e.preventDefault(); next.focus(); selectTab(next); }
+    });
+  });
+
+  // Filter
+  const filterEl = document.getElementById("filter");
+  const countEl = document.getElementById("count");
+  function applyFilter() {
+    const q = filterEl.value.trim().toLowerCase();
+    document.querySelectorAll(".card").forEach(function (c) {
+      c.style.display = (!q || c.dataset.search.indexOf(q) !== -1) ? "" : "none";
+    });
+    document.querySelectorAll("tbody").forEach(function (tb) {
+      let shown = 0;
+      Array.prototype.forEach.call(tb.rows, function (r) {
+        const hit = !q || r.textContent.toLowerCase().indexOf(q) !== -1;
+        r.style.display = hit ? "" : "none";
+        if (hit) shown += 1;
+      });
+      const table = tb.closest("table");
+      if (table) table.style.visibility = shown === 0 && q ? "hidden" : "";
+    });
+    // Count only the visible panel
+    const active = document.querySelector('.panel:not([hidden])');
+    if (!active) { countEl.textContent = ""; return; }
+    let visible = 0, total = 0;
+    active.querySelectorAll(".card").forEach(function (c) {
+      total += 1;
+      if (c.style.display !== "none") visible += 1;
+    });
+    active.querySelectorAll("tbody tr").forEach(function (r) {
+      total += 1;
+      if (r.style.display !== "none") visible += 1;
+    });
+    countEl.textContent = q ? ("Showing " + visible + " of " + total) : (total ? total + " entries in this section" : "");
+  }
+  filterEl.addEventListener("input", applyFilter);
+
+  // Theme
+  const themeBtn = document.getElementById("themeBtn");
+  const root = document.documentElement;
+  function setTheme(light) {
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    themeBtn.textContent = light ? "Dark mode" : "Light mode";
+    themeBtn.setAttribute("aria-label", light ? "Switch to dark mode" : "Switch to light mode");
+  }
+  const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+  setTheme(prefersLight);
+  themeBtn.addEventListener("click", function () {
+    setTheme(root.getAttribute("data-theme") !== "light");
+  });
+
+  applyFilter();
+</script>
+</body>
+</html>

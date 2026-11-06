@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output and packaged artifacts
+*.crx
+*.pem
+*.zip
+dist/
+build/
+out/
+
+# The private half of the pinned extension key — never commit
+tools/extension-key.json
+
+# Local environment and secrets
+.env
+.env.*
+*.key
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and coverage
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+
+# Test scratch output
+test/tmp/
+test/output/

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Web Clipper Manager — Options</title>
+    <link rel="stylesheet" href="popup.css" />
+    <style>
+      body {
+        width: auto;
+        max-height: none;
+        min-width: 660px;
+        padding: 0;
+      }
+      main {
+        padding: 18px 22px 32px;
+        max-width: 780px;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--muted);
+        margin: 24px 0 8px;
+      }
+      label {
+        display: block;
+        margin: 0 0 12px;
+      }
+      label span {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        color: var(--text);
+        border-radius: 7px;
+        padding: 8px 10px;
+        font: 13px/1.4 ui-monospace, Consolas, monospace;
+      }
+      select {
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      .field-row {
+        display: flex;
+        gap: 6px;
+        align-items: stretch;
+      }
+      .field-row input,
+      .field-row select {
+        flex: 1;
+      }
+      .field-row button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .check span {
+        margin: 0;
+        color: var(--text);
+        font-size: 13px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 6px 0 0;
+        line-height: 1.5;
+      }
+      code {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 12px;
+      }
+      .bar-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 22px;
+        align-items: center;
+      }
+      .inline-hint {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Web Clipper Manager</h1>
+      <p class="sub">Everything is stored locally. No accounts, no telemetry.</p>
+
+      <h2>Vault</h2>
+      <label>
+        <span>Obsidian vault path (absolute)</span>
+        <div class="field-row">
+          <input id="vaultPath" type="text" placeholder="C:\Users\you\Documents\MyVault" />
+          <button id="browseVault" class="ghost" type="button">Browse…</button>
+        </div>
+        <div class="inline-hint">Clipped notes and images are written inside this folder only.</div>
+      </label>
+
+      <div class="split">
+        <label>
+          <span>Notes folder (inside the vault)</span>
+          <div class="field-row">
+            <input id="notesFolder" type="text" placeholder="Clippings" />
+            <button id="browseNotes" class="ghost" type="button">Browse…</button>
+          </div>
+        </label>
+        <label>
+          <span>Attachments folder</span>
+          <div class="field-row">
+            <input id="attachmentFolder" type="text" placeholder="_assets" />
+            <button id="browseAttachments" class="ghost" type="button">Browse…</button>
+          </div>
+        </label>
+      </div>
+
+      <label>
+        <span>Where attachments go</span>
+        <select id="attachmentMode">
+          <option value="fixed">One shared folder (recommended)</option>
+          <option value="noteRelative">A subfolder inside each note's folder</option>
+          <option value="sameAsNote">Next to the note file</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Filename template — tokens: {{date}} {{time}} {{title}} {{source}} {{author}}</span>
+        <input id="filenameTemplate" type="text" placeholder="{{date}} {{title}}" />
+      </label>
+
+      <h2>Markdown shape</h2>
+      <div class="split">
+        <label>
+          <span>Image embed style</span>
+          <select id="embedStyle">
+            <option value="wikilink">Obsidian wikilink — ![[image.jpg]]</option>
+            <option value="markdown">Standard Markdown — ![](path/image.jpg)</option>
+          </select>
+        </label>
+        <label>
+          <span>Default image width (0 = original)</span>
+          <input id="embedWidth" type="number" min="0" max="4000" step="10" placeholder="0" />
+        </label>
+      </div>
+
+      <label class="check">
+        <input id="includeId" type="checkbox" />
+        <span>Add a stable <code>id</code> to frontmatter (same URL ⇒ same ID)</span>
+      </label>
+      <label class="check">
+        <input id="includeSourceCallout" type="checkbox" />
+        <span>Add the <code>&gt; [!info] Source</code> callout</span>
+      </label>
+      <label class="check">
+        <input id="includeEngagement" type="checkbox" />
+        <span>Include engagement counts (likes, upvotes, replies)</span>
+      </label>
+
+      <h2>Capture</h2>
+      <div class="split">
+        <label>
+          <span>Full-page screenshot format</span>
+          <select id="imageFormat">
+            <option value="png">PNG (lossless)</option>
+            <option value="jpeg">JPEG (smaller)</option>
+          </select>
+        </label>
+        <label>
+          <span>Service URL</span>
+          <input id="serviceUrl" type="text" placeholder="http://127.0.0.1:8787" />
+        </label>
+      </div>
+      <label class="check">
+        <input id="preferNativeHost" type="checkbox" />
+        <span>Write directly to the vault through the local service</span>
+      </label>
+
+      <h2>Local service</h2>
+      <div id="hostStatus" class="notice warn" role="status" aria-live="polite">Checking…</div>
+      <p class="sub">
+        Start it with <code>local-service\start.cmd</code>. Without it you can still preview and
+        download Markdown, but images, vault writes, PDF and folder picking need the service.
+        Extension ID: <code id="extId">…</code>.
+      </p>
+
+      <div class="bar-actions">
+        <button id="saveBtn" class="primary" type="button">Save settings</button>
+        <button id="testBtn" class="ghost" type="button">Test write</button>
+        <span id="status" class="sub" role="status" aria-live="polite"></span>
+      </div>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
