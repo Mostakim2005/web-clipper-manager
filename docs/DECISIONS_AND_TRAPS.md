@@ -184,45 +184,126 @@ flowchart LR
 * **Code Anchors (Grep Targets):**
   * `test/a11y-check.js` -> `check`
 
-### [DECISION: Obsidian-Note-Format-Frozen-Until-Specified] | Aliases: render.js frozen, provisional format, per-site spec
-> **1-Line Summary:** The renderer, frontmatter schema and folder layout are frozen until the owner supplies the per-site note spec, because that spec will rewrite them.
+### [DECISION: Obsidian-Note-Format-Settled-By-Owner] | Aliases: settled format, single clipping folder, quick save, no engagement
+> **1-Line Summary:** The owner decided the note destination and layout on 2026-11-07: a single default folder (`Web Clipper Manager` or `Web Clipping`) with Quick Save, no engagement callouts, and 1 note per Telegram message.
 * **Decision Maker:** `[DECIDED BY: HUMAN]`
-* **Original User Intention:** The owner wants the note shape to be their decision, not something an agent improves on a whim and then has to undo.
+* **Original User Intention:** The owner wanted the note layout and workflow settled decisively: simple filing into one configured vault folder, avoiding metric clutter, and keeping capture single-step.
 * **Options Considered:**
-  * **Option A (Rejected):** Keep "improving" callouts, fields and folder layout while waiting. Every improvement becomes a migration when the real spec arrives, and the YouTube and Telegram adapters would be built against the wrong shape.
-  * **Option B (Chosen):** Freeze the renderer for v1, fix bugs only, and hold the two remaining adapters until the five open questions in `SCOPE.md` are answered.
+  * **Option A (Rejected):** Multi-level subfolders per source with complex append/merge pipelines for multi-message or video formats.
+  * **Option B (Chosen):** A single configured default folder in the vault (`Web Clipper Manager` or `Web Clipping`) with a Quick Save toggle or manual folder selection; Telegram as one note per message; engagement counts dropped entirely.
 * **Visual Pivot Map (What Failed vs. What Works):**
 ```mermaid
 flowchart LR
-    subgraph Failed["❌ Improvise Format Now (Rejected)"]
-        A1[Agent redesigns callouts] --> A2[YouTube adapter built to wrong shape]
-        A2 --> A3[Spec arrives, everything rewritten]
+    subgraph Rejected["❌ Complex Multi-File Architecture"]
+        A1[Per-source folders & append merge] --> A2[Cluttered engagement callouts]
+        A2 --> A3[High operational overhead]
     end
-    subgraph Active["✅ Freeze And Ask (Works)"]
-        B1[Renderer frozen, bugs only] --> B2[Five questions answered first]
-        B2 --> B3[Adapters written once, to the real shape]
+    subgraph Active["✅ Single Folder & Streamlined Capture"]
+        B1[Configured default folder in vault] --> B2[Quick Save toggle or manual picker]
+        B2 --> B3[Clean note without engagement clutter]
     end
 ```
 * **Code Anchors (Grep Targets):**
-  * `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`, `attachmentDir`
-  * `SCOPE.md` -> section "Open — blocked on the owner"
+  * `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`
+  * `SCOPE.md` -> section "Settled Decisions (Updated 2026-11-07)"
+
+### [DECISION: Scope-Exclusion-YouTube] | Aliases: remove youtube, youtube out of scope, native embeds
+> **1-Line Summary:** YouTube is explicitly removed from scope because Obsidian already supports native video embeds and the owner maintains a separate YouTube workflow.
+* **Decision Maker:** `[DECIDED BY: HUMAN]`
+* **Original User Intention:** Avoid building redundant clipping infrastructure for video content when native embedding exists and separate dedicated plans are already in place.
+* **Options Considered:**
+  * **Option A (Rejected):** Build an elaborate YouTube extractor with transcript parsing, chapters, and duration frontmatter.
+  * **Option B (Chosen):** Drop YouTube completely from the extension scope to keep the tool focused on text and visual web clipping.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Rejected["❌ YouTube Extractor Pipeline"]
+        A1[Complex transcript & timestamp parsing] --> A2[Redundant with Obsidian native video embed]
+    end
+    subgraph Active["✅ Clean Focus"]
+        B1[Owner embeds or clips YouTube separately] --> B2[Clipper stays lean for web text & images]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `SCOPE.md` -> section "Out of scope — do not implement: Sources removed"
+
+### [DECISION: Telegram-One-Note-Per-Message] | Aliases: telegram note structure, single message note, t.me
+> **1-Line Summary:** Telegram clips from public channels (`t.me/s/<channel>`) produce one note per message, preserving the 1-capture = 1-note pipeline.
+* **Decision Maker:** `[DECIDED BY: HUMAN]`
+* **Original User Intention:** Clip messages from public channels cleanly without requiring an invasive append/merge engine or complex multi-message synchronization.
+* **Options Considered:**
+  * **Option A (Rejected):** Append multiple messages into a single running channel note, requiring stateful note mutation and concurrency guards.
+  * **Option B (Chosen):** One note per message (with future optional multi-selection), fitting naturally into the existing `Clip` object and single renderer.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Rejected["❌ Append / Channel Merge"]
+        A1[Mutate existing note on disk] --> A2[Race conditions & merge conflicts]
+    end
+    subgraph Active["✅ 1 Capture = 1 Note"]
+        B1[Single message captured] --> B2[Standard Clip pipeline -> Dedicated note]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `extension/src/content/extract.js` -> `extractTelegram`
+  * `SCOPE.md` -> section "Settled Decisions (Updated 2026-11-07)"
+
+### [DECISION: Drop-Engagement-Counts] | Aliases: remove engagement, no upvotes, no likes, no reposts
+> **1-Line Summary:** Engagement counts (upvotes, likes, reposts) and the `> [!quote]- Engagement at capture` callout are dropped to eliminate unnecessary complication.
+* **Decision Maker:** `[DECIDED BY: HUMAN]`
+* **Original User Intention:** Keep notes clean and evergreen; engagement metrics age immediately and add zero value to personal knowledge management in Obsidian.
+* **Options Considered:**
+  * **Option A (Rejected):** Scrape and maintain dynamic like/repost/comment metrics in callouts.
+  * **Option B (Chosen):** Drop engagement callouts and frontmatter fields completely across all sources.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Rejected["❌ Ephemeral Metrics Callout"]
+        A1[Scrape volatile engagement numbers] --> A2[Cluttered callout that ages immediately]
+    end
+    subgraph Active["✅ Pure Content Note"]
+        B1[Extract author, URL, full text & images] --> B2[Clean, evergreen Obsidian note]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `extension/src/lib/render.js` -> `renderNote`, `engagementLine`
+
+### [DECISION: Social-Posts-No-Comments-Policy] | Aliases: no comments facebook twitter, reddit optional comments
+> **1-Line Summary:** Facebook and Twitter extract only post content (author, profile name, original URL, full text body, images) without comments; comments are optional and capped elsewhere.
+* **Decision Maker:** `[DECIDED BY: HUMAN]`
+* **Original User Intention:** Prevent fragile selector breakage and deep comment recursion on social networks where the owner only cares about the main post.
+* **Options Considered:**
+  * **Option A (Rejected):** Attempt comment scraping on Facebook and Twitter/X.
+  * **Option B (Chosen):** Strictly no comments on Facebook/Twitter; Reddit comments remain optional and capped (~5-25) only if friction-free, skipped if complex.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Rejected["❌ Fragile Social Comment Scrapers"]
+        A1[Scrape dynamic comment threads] --> A2[Frequent breakage & endless scrolling traps]
+    end
+    subgraph Active["✅ Stable Post Focus"]
+        B1[Target post author, text, URL & media] --> B2[Resilient extraction with zero comment noise]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `extension/src/content/extract.js` -> `extractFacebook`, `extractTwitter`, `extractReddit`
 
 ### [DECISION: Deliberately-Narrow-Scope] | Aliases: out of scope, rejected sources, no AI, no tagging
-> **1-Line Summary:** Scope is six sources, four formats and two browsers, and pruning is permanent rather than a phase.
+> **1-Line Summary:** Scope is five sources, four formats and two browsers, and pruning is permanent rather than a phase.
 * **Decision Maker:** `[DECIDED BY: HUMAN]`
 * **Original User Intention:** The owner files, tags, searches and analyses in other tools. Anything the clipper does in those areas duplicates existing work and splits the source of truth.
 * **Options Considered:**
-  * **Option A (Rejected):** Add whatever is easy — Bluesky, Mastodon, Hacker News, JSON export, a Notion target. Three of those were agent suggestions the owner explicitly rejected.
+  * **Option A (Rejected):** Add whatever is easy — YouTube, Bluesky, Mastodon, Hacker News, JSON export, a Notion target.
   * **Option B (Chosen):** A written out-of-scope list in `SCOPE.md` that a future session reads before proposing anything.
 * **Visual Pivot Map (What Failed vs. What Works):**
 ```mermaid
 flowchart LR
     subgraph Failed["❌ Unlimited Surface (Rejected)"]
-        A1[Every easy source added] --> A2[Six failure modes become twenty]
+        A1[Every easy source added] --> A2[Five failure modes become twenty]
         A2 --> A3[Feature work never ends]
     end
     subgraph Active["✅ Written Boundary (Works)"]
-        B1[Six sources, four formats] --> B2[Out-of-scope list in SCOPE.md]
+        B1[Five sources, four formats] --> B2[Out-of-scope list in SCOPE.md]
         B2 --> B3[Rejections are not rediscovered as easy wins]
     end
 ```
@@ -284,18 +365,18 @@ flowchart LR
   * `extension/src/content/extract.js` -> `extractArticle`, `extractFacebook`, `extractTwitter`, `extractReddit`
   * `extension/src/lib/render.js` -> `renderNote`
 
-### [TRAP: Renderer-Frozen-Pending-Owner-Spec] | Aliases: provisional format, do not redesign, frontmatter schema
-> **1-Line Summary:** **NEVER** redesign the renderer, callout structure, frontmatter schema or folder layout before the owner's per-site spec arrives.
-* **Strict Rule:** **NEVER** "improve" the note format. Fix bugs; do not redesign. Do not write the YouTube or Telegram adapters before `SCOPE.md` questions 2, 3 and 4 are answered.
-* **Why This Trap Exists (Plain English):** The format is provisional by the owner's decision. Any redesign now is work that the incoming spec overwrites, and adapters written against a guessed shape have to be retrofitted. The renderer is deliberately frozen so that the spec can be applied in a single pass with its tests.
+### [TRAP: Renderer-Follows-Owner-Decisions] | Aliases: format rules, do not redesign, single clipping folder, drop engagement
+> **1-Line Summary:** **NEVER** re-introduce engagement callouts, multi-level source subfolders, or YouTube adapters against the owner's settled decisions.
+* **Strict Rule:** **NEVER** add unsolicited format "enhancements" or complex per-source directory hierarchies. The note destination is a single configured vault folder (`Web Clipper Manager` / `Web Clipping`), Quick Save or manual selection, engagement callouts are dropped, and Telegram is 1 note per message.
+* **Why This Trap Exists (Plain English):** The owner explicitly settled these format questions on 2026-11-07 to keep personal knowledge management simple, fast, and free of noisy metrics. Improvised changes violate user intention and clutter the vault.
 * **Protected Code Anchors (Grep Targets):**
   * `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`, `attachmentDir`
-  * `SCOPE.md` -> section "Open — blocked on the owner"
+  * `SCOPE.md` -> section "Settled Decisions (Updated 2026-11-07)"
 
-### [TRAP: Rejected-Features-Are-Not-Easy-Wins] | Aliases: bluesky, mastodon, notion, json export, scope creep
-> **1-Line Summary:** **NEVER** re-propose Bluesky, Mastodon, Hacker News, Notion, Logseq, Joplin, JSON/CSV export, Safari, Firefox or the automation layer.
+### [TRAP: Rejected-Features-Are-Not-Easy-Wins] | Aliases: youtube, bluesky, mastodon, notion, json export, scope creep
+> **1-Line Summary:** **NEVER** re-propose YouTube, Bluesky, Mastodon, Hacker News, Notion, Logseq, Joplin, JSON/CSV export, Safari, Firefox or the automation layer.
 * **Strict Rule:** **NEVER** add a source, format, destination or browser that `SCOPE.md` lists as out of scope. If one genuinely seems necessary, ask first — do not add it and mention it afterwards.
-* **Why This Trap Exists (Plain English):** Several of those were agent suggestions that the owner considered and explicitly rejected. They look like quick wins and are not: each one adds a permanent failure mode to a tool whose value is that it is small and finished.
+* **Why This Trap Exists (Plain English):** Several of those were agent suggestions that the owner considered and explicitly rejected (including YouTube, which is handled via native embeds and separate workflows). They look like quick wins and are not: each one adds a permanent failure mode to a tool whose value is that it is small and finished.
 * **Protected Code Anchors (Grep Targets):**
   * `SCOPE.md` -> section "Out of scope — do not implement"
   * `docs/PRODUCT.md` -> section "Deliberately Removed"

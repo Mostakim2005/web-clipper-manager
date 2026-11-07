@@ -3,17 +3,17 @@
 
 ## 1. Core Vision & User Experience Intent
 
-* **What This App Does (Plain English):** It takes the page you are looking at — an article, a Facebook post, a Twitter/X post, a Reddit thread, and later a YouTube video or a Telegram channel message — and saves it into Obsidian as one note in one consistent shape, complete with a stable ID, images, author, date, links and engagement. The same capture can also leave as a PDF, a full-page PNG/JPEG, or a single self-contained HTML file.
-* **Who It Is For:** One person, one Obsidian vault, one dedicated folder. It is not a product for a market and it does not need onboarding.
-* **How It Must Feel to Use:** Click, glance at the preview, save. No account, no sign-in, no telemetry, no cloud round-trip — everything runs on this machine. When the local service is not running the tool degrades politely instead of failing: it still previews, still exports Markdown, and says plainly which parts are unavailable. A note is never silently half-written and never silently overwritten.
-* **What It Deliberately Is Not:** The clipper's job ends when the note is written. Search, tagging, collections, highlights, reading status, filing and AI all happen downstream in the owner's own workflow. Building them here would duplicate work and split the source of truth.
+* **What This App Does (Plain English):** It takes the page you are looking at — an article, a Facebook post, a Twitter/X post, a Reddit thread, and next a Telegram channel message — and saves it into Obsidian as one note in one consistent shape, complete with a stable ID, images, author, date, and links. The same capture can also leave as a PDF, a full-page PNG/JPEG, or a single self-contained HTML file.
+* **Who It Is For:** One person, one Obsidian vault, one configured default folder (`Web Clipper Manager` or `Web Clipping`). It is not a product for a market and it does not need onboarding.
+* **How It Must Feel to Use:** Click, glance at the preview, save. Features a toggleable "Quick Save" mode that saves instantly into the configured default folder, while also supporting manual folder targeting in the vault when desired. No account, no sign-in, no telemetry, no cloud round-trip — everything runs on this machine. When the local service is not running the tool degrades politely instead of failing: it still previews, still exports Markdown, and says plainly which parts are unavailable. A note is never silently half-written and never silently overwritten.
+* **What It Deliberately Is Not:** The clipper's job ends when the note is written. Search, tagging, collections, highlights, reading status, filing, YouTube archiving and AI all happen downstream in the owner's own workflow. Building them here would duplicate work and split the source of truth.
 
 ## 2. Active Features (Do Not Break)
 
 ### [FEATURE: Single-Clip-Model-One-Renderer] | Aliases: same format, one note shape, Clip object, adapter, normalised
 > **1-Line Summary:** Every source is converted into one identical `Clip` object and rendered by exactly one renderer, which is what makes "same format for every source" true rather than aspirational.
 * **User Intention (Non-Negotiable):** A Reddit thread and a Twitter post must land in the vault looking like siblings. Adding a source must cost one adapter, never a second renderer.
-* **Visual / UI Behavior:** Invisible to the user by design; it shows up as identical frontmatter shape and identical callout structure regardless of where the clip came from.
+* **Visual / UI Behavior:** Invisible to the user by design; it shows up as identical frontmatter shape and clean callout structure regardless of where the clip came from.
 * **Code Anchors (Grep Targets):**
   * `extension/src/content/extract.js` -> `OC.extract`, `extractArticle`, `extractFacebook`, `extractTwitter`, `extractReddit`
   * `extension/src/lib/render.js` -> `renderNote`
@@ -26,26 +26,26 @@
   * `extension/src/content/extract.js` -> `extractArticle`
   * `extension/src/content/lib.js` -> `OC.absolutize`, `OC.stashImages`, `OC.htmlToMarkdown`, `OC.meta`, `OC.jsonLd`
 
-### [FEATURE: Facebook-Post-Clipping] | Aliases: FB, timestamp, photos, See more
-> **1-Line Summary:** Captures a single Facebook post's text, author, timestamp and photos, and unwraps outbound links that Facebook redirects.
-* **User Intention (Non-Negotiable):** Only the post the owner is looking at — never the comment thread, never the whole feed. Photos sit outside the text block and must not be lost.
+### [FEATURE: Facebook-Post-Clipping] | Aliases: FB, author, profile name, full text, photos
+> **1-Line Summary:** Captures a single Facebook post's author name, profile name, post URL, entirety of the body text, and images without comments.
+* **User Intention (Non-Negotiable):** Captures only the post the owner is looking at — the full text, author, profile name, post link and photos. No comments. Outbound links that Facebook redirects are unwrapped.
 * **Visual / UI Behavior:** Same popup preview as every other source. Multi-photo posts arrive as individual images.
 * **Code Anchors (Grep Targets):**
   * `extension/src/content/extract.js` -> `extractFacebook`, `expandFacebookSeeMore`, `scoreFacebookArticle`, `pickFacebookArticle`, `facebookTextElement`, `facebookAuthor`, `facebookTimestamp`, `facebookLinks`
   * `extension/src/content/lib.js` -> `OC.unwrapLink`
 
-### [FEATURE: Twitter-X-Post-Clipping] | Aliases: tweet, X, FxTwitter, handle, avatar
-> **1-Line Summary:** Captures a post's text, author, handle, avatar, date, original-resolution images and engagement counts.
-* **User Intention (Non-Negotiable):** Highest available image resolution, not the timeline thumbnail. When the metadata route is unavailable the visible page is used instead, and the note says so.
-* **Visual / UI Behavior:** Engagement counts render as a toggleable callout; a fallback capture adds a "capture notes" callout.
+### [FEATURE: Twitter-X-Post-Clipping] | Aliases: tweet, X, account name, full text, original link, photos
+> **1-Line Summary:** Captures a post's author name, account handle, full post text, original post link, and original-resolution images without comments or engagement counts.
+* **User Intention (Non-Negotiable):** Highest available image resolution. Captures post content cleanly without comments or engagement metrics (likes, reposts, upvotes). When the metadata route is unavailable the visible page is used instead.
+* **Visual / UI Behavior:** Clean text and media preview without engagement clutter; a fallback capture adds a "capture notes" callout.
 * **Code Anchors (Grep Targets):**
   * `extension/src/content/extract.js` -> `extractTwitter`, `readTwitterDom`, `normalizeTwitterMedia`, `applyTwitterFacets`, `upgradeTwitterImage`
   * `extension/src/background.js` -> `fetchJson`
 
-### [FEATURE: Reddit-Thread-Clipping] | Aliases: subreddit, comments, gallery, upvotes
-> **1-Line Summary:** Captures a Reddit post with its gallery images and the top comment branches, delimited and capped.
-* **User Intention (Non-Negotiable):** Comment depth is capped at 25 branches and the note states when it was truncated rather than pretending the thread was fully captured.
-* **Visual / UI Behavior:** Headings per comment branch in the preview; truncation reported in the partial-capture callout.
+### [FEATURE: Reddit-Thread-Clipping] | Aliases: subreddit, gallery, post text, optional comments
+> **1-Line Summary:** Captures a Reddit post with its gallery images and optional top comments (capped at ~5-25 branches without complexity).
+* **User Intention (Non-Negotiable):** Post title, author, URL, gallery images, and body text. Comments are optional and capped to avoid complexity; skipped if troublesome.
+* **Visual / UI Behavior:** Headings per comment branch in the preview if enabled; truncation reported in the partial-capture callout.
 * **Code Anchors (Grep Targets):**
   * `extension/src/content/extract.js` -> `extractReddit`, `redditImages`, `redditComments`
   * `extension/src/background.js` -> `fetchJson`
@@ -65,13 +65,14 @@
   * `local-service/host.js` -> `opSave`, `writeAssets`, `assertInside`, `safeJoin`, `requireVault`, `startHttp`
   * `extension/src/background.js` -> `persist`, `buildNote`, `serviceCall`, `hostStatus`
 
-### [FEATURE: Vault-Folder-Pickers] | Aliases: browse, folder dialog, choose vault
-> **1-Line Summary:** Native folder dialogs let the owner pick the vault, the notes folder and the attachments folder without typing absolute paths.
-* **User Intention (Non-Negotiable):** Picking folders must not require the owner to know or type filesystem paths.
-* **Visual / UI Behavior:** `Browse…` buttons in Options; the chosen path is shown and stored.
+### [FEATURE: Vault-Folder-Pickers-And-Quick-Save] | Aliases: browse, folder dialog, choose vault, quick save, web clipping folder
+> **1-Line Summary:** Native folder dialogs configure the Obsidian vault and default clipping folder (`Web Clipper Manager` or `Web Clipping`), with a toggleable Quick Save mode or manual folder selection.
+* **User Intention (Non-Negotiable):** The owner can configure a default clipping folder inside the vault. With Quick Save toggled ON, clips land instantly in that default folder without prompt. With Quick Save toggled OFF, the user can manually pick a specific destination folder inside the vault.
+* **Visual / UI Behavior:** Quick Save toggle in the popup UI; `Browse…` buttons in Options for vault and attachments folders.
 * **Code Anchors (Grep Targets):**
   * `local-service/host.js` -> `opPickFolder`
   * `extension/src/pages/options.js` -> `browse`, `toVaultRelative`
+  * `extension/src/pages/popup.js` -> `save`
 
 ### [FEATURE: Attachment-Placement-Layouts] | Aliases: assets folder, image location, collocated, per-note folder
 > **1-Line Summary:** Images can live in one shared attachments folder, in a subfolder beside each note's folder, or next to the note itself.
@@ -173,22 +174,15 @@
 
 ## 3. Planned Features & App-Merge Wishlist
 
-### [WISHLIST: YouTube-Video-Clipping] | Aliases: youtube, video, transcript, chapters, duration
-> **1-Line Summary:** Capture a YouTube video's metadata, description, thumbnail and timestamped transcript as one note.
-* **User Intention:** Video must land in the same shape as every other source, with a transcript that is still readable as a PDF.
-* **Target Integration Point:** A new `extractYouTube` adapter feeding the existing `Clip`; `OC.extract` already leaves room in `Clip.extra`.
-* **Blocker:** Cannot be written before questions 2 and 3 in `SCOPE.md` are answered — both change the emitted note.
-
 ### [WISHLIST: Telegram-Channel-Clipping] | Aliases: telegram, t.me, public channel, message id
-> **1-Line Summary:** Capture a message from a public Telegram channel page into the same note format.
-* **User Intention:** Same one-note-per-capture behaviour as every other source; public channel pages only, no login and no chat export.
+> **1-Line Summary:** Capture a single message from a public Telegram channel page (`t.me/s/<channel>`) into the same note format.
+* **User Intention:** One note per message behaviour matching every other source; public channel pages only, no login and no chat export. Multi-message selection may be added optionally in the future, but baseline is 1 note per message.
 * **Target Integration Point:** A new `extractTelegram` adapter behind `OC.detectSource`.
-* **Blocker:** Question 4 in `SCOPE.md` may require an append/merge mode that does not exist in the pipeline today.
 
 ### [WISHLIST: Per-Site-Note-Format-Spec] | Aliases: obsidian format, folder layout, frontmatter schema
-> **1-Line Summary:** The owner's precise per-source note layout, which then replaces the current provisional renderer.
-* **User Intention:** The note shape is the owner's decision, not the tool's. The current renderer is correct for v1 but provisional and deliberately frozen until the spec arrives.
-* **Target Integration Point:** `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`, `attachmentDir` — revised in one pass, with its tests.
+> **1-Line Summary:** Incorporates settled format decisions: single default folder (`Web Clipper Manager` / `Web Clipping`), Quick Save mode, dropped engagement callouts.
+* **User Intention:** The note shape is configured to the owner's decisions. Engagement callouts are removed, saving complexity.
+* **Target Integration Point:** `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`, `attachmentDir`.
 
 ### [WISHLIST: Selection-Clip] | Aliases: highlight to clip, selected text
 > **1-Line Summary:** Clip only the text the owner has selected on the page instead of the whole capture.
@@ -226,7 +220,9 @@ These were considered and cut. They are not easy wins, and they must not reappea
 
 | Category | Removed | Why |
 |---|---|---|
-| Sources | Bluesky, Mastodon, Hacker News, LinkedIn, Instagram, Threads, WhatsApp, Slack, Discord | Not used by the owner; three were agent suggestions explicitly rejected by the owner |
+| Sources | YouTube, Bluesky, Mastodon, Hacker News, LinkedIn, Instagram, Threads, WhatsApp, Slack, Discord | YouTube has native Obsidian embed support & owner has separate workflow; others not used by owner |
+| Metrics & Callouts | Upvotes, likes, reposts, engagement callouts | Unnecessary complication; filing & reading is done manually downstream |
+| Comments | Facebook/Twitter comments (Reddit capped at ~5/optional) | Full comment extraction is complex; author/post text/images take priority |
 | Output formats | JSON, CSV, EPUB, DOCX, WARC, MHTML, Notion, Logseq, Joplin, Zotero/BibTeX | This is a clipper, not an exporter pipeline. Four formats only |
 | Destinations | WebDAV, S3, Git, Obsidian URI | One local vault, one path |
 | Organisation | Search, tags, collections, smart folders, highlights, reading status, duplicate clusters, link-rot checks, vault encryption | Done in-house, downstream. Filing logic here would split the source of truth |

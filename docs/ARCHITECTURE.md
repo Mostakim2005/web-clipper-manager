@@ -301,7 +301,7 @@ flowchart TB
   2. Register the hostname in `extension/src/content/extract.js` -> `OC.detectSource`
   3. Dispatch it in `extension/src/content/extract.js` -> `OC.extract`
   4. Add a fixture under `test/fixtures/` and assertions in `test/run-tests.js` -> `check`
-  5. Only if the source needs a new `Clip` field: update `extension/src/lib/render.js` -> `renderNote` **and stop** — the frontmatter schema is frozen pending `SCOPE.md` question 2
+  5. Only if the source needs a new `Clip` field: update `extension/src/lib/render.js` -> `renderNote` respecting the settled schema in `SCOPE.md` (clean frontmatter, no engagement callouts, single note output)
 
 * **To add a new output format:**
   1. Check `SCOPE.md` first — the answer is currently no, and `docs/PRODUCT.md` §4 records why

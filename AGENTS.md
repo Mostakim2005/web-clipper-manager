@@ -24,16 +24,17 @@ when the task touches it.
   mention it afterwards.
 - **No AI, no tagging, no search, no highlights, no reading status.** The owner
   does those in-house, downstream of this tool. Do not build filing logic.
-- **The Obsidian note format is not settled.** `render.js`, the frontmatter
-  schema and the folder layout are frozen until the owner supplies the per-site
-  spec. Fix bugs; do not redesign.
-- **Five questions are outstanding.** They live in `SCOPE.md` → "Open" and are
-  summarised at the top of `HANDOFF.md`. Ask them; do not infer answers. The
-  YouTube and Telegram adapters must not be written before they are answered,
-  because each answer changes the note those adapters emit.
-- **Do not reintroduce rejected ideas.** Bluesky, Mastodon, Hacker News, Notion,
-  Logseq, Joplin, WARC, EPUB, DOCX, JSON/CSV export, Safari, Firefox and the
-  automation layer were considered and removed. They are not "easy wins".
+- **The Obsidian note format and destination layout are decided.** See
+  `SCOPE.md` (Updated 2026-11-07). Save targets a single configured folder in
+  the vault (`Web Clipper Manager` or `Web Clipping`) with a Quick Save toggle
+  or manual folder selection. Engagement callouts are dropped.
+- **YouTube is removed from scope.** The owner embeds YouTube natively or handles
+  it through separate workflows; do not build a YouTube adapter.
+- **Telegram is one note per message.** Public channels only (`t.me/s/<channel>`),
+  no login, no chat export, no complex append/merge engine.
+- **Do not reintroduce rejected ideas.** YouTube, Bluesky, Mastodon, Hacker News,
+  Notion, Logseq, Joplin, WARC, EPUB, DOCX, JSON/CSV export, Safari, Firefox and
+  the automation layer were considered and removed. They are not "easy wins".
 - **The `omni-` prefix is data, not branding.** The product is called Web Clipper
   Manager, but note IDs and asset filenames keep `omni-` because the prefix is
   stored in every note already in a vault.
@@ -56,17 +57,18 @@ mangles em dashes and arrows. There is a `[TRAP]` entry about exactly this.
 
 ## Current state
 
-v0.3.1. Six-source clipper, four of six built. 106 automated assertions.
-Manifest packs to a valid ~89 KB CRX. Loads unpacked in Edge or Chrome.
+v0.3.1. Five-source clipper, four of five built (Article, Facebook, Twitter/X,
+Reddit). 106 automated assertions. Manifest packs to a valid ~89 KB CRX. Loads
+unpacked in Edge or Chrome.
 
-**Paused 2026-11-04.** No feature work is in flight. Resume only after the five
-open questions are answered.
+**Updated 2026-11-07.** The 5 open questions have been answered. Scope and plan
+are updated.
 
 ## Next work
 
-YouTube and Telegram adapters, as specified in `SCOPE.md`. Telegram is public
-channels only (`t.me/s/<channel>`); no private chat export, no login. Both are
-blocked on outstanding questions 2, 3 and 4.
+Telegram adapter, as specified in `SCOPE.md`. Public channels only (`t.me/s/<channel>`),
+one note per message; no private chat export, no login. Also update `render.js` to
+remove the engagement callout and wire the Quick Save / vault folder selection options.
 
 ## Conventions that exist on purpose
 

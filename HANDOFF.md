@@ -1,30 +1,26 @@
 # HANDOFF — Web Clipper Manager
 
-Read this file alone to resume work. Last updated 2026-11-06.
+Read this file alone to resume work. Last updated 2026-11-07.
 
-## Status: paused 2026-11-04
+## Status: resumed 2026-11-07
 
-Paused at the owner's request, to be resumed by another agent. Nothing is
-half-finished: the tree is green and the manifest packs. Do not start new
-features until the **Open questions** below are answered.
+The five open questions were answered by the owner on 2026-11-07. The tree is
+green and all tests pass (`npm run test:all` + `npm run test:pdf`).
+Documentation and scope are updated.
 
 Audits completed: accessibility (10 findings fixed, enforced by
 `test/a11y-check.js`). Not started: security, performance, visual design.
 
-## Open questions — blocked on the owner
+## Settled decisions from the owner (2026-11-07)
 
-Canonical list with rationale and what each blocks: `SCOPE.md` → "Open".
-Short form:
+Canonical details: `SCOPE.md` → "Settled Decisions". Summary:
 
-1. One flat folder for all clips, or a subfolder per source?
-2. YouTube: separate frontmatter fields for channel / duration / video ID, or not?
-3. Transcript: blockquote, code block, or collapsible callout?
-4. Telegram: one note per message, or one note per channel with appended messages?
-5. Keep the engagement callout, or drop it?
-
-Questions 4 and 5 have code consequences. One note per channel needs an
-append/merge mode that does not exist; dropping engagement touches the renderer
-and its tests.
+1. **Folder layout & destination:** Single folder configured inside the Obsidian vault (default `Web Clipper Manager` / `Web Clipping`). Save uses a toggleable "Quick Save" option (saves straight to the default folder) or manual selection of a specific folder in the vault.
+2. **YouTube:** Removed from scope entirely. The owner embeds YouTube natively in Obsidian or handles it through separate dedicated workflows.
+3. **Transcript:** Obsolete due to YouTube removal.
+4. **Telegram:** One note per message from public channel pages (`t.me/s/<channel>`). Keeps the single-clip single-renderer architecture; no complex append/merge engine.
+5. **Engagement counts:** Dropped completely. No upvotes, likes, reposts or engagement callouts (`> [!quote]- Engagement at capture` is removed).
+6. **Comments policy:** Facebook & Twitter capture no comments (author name, profile name, post URL, full text body, images only). Reddit comments are strictly optional/minimal (up to ~5 if simple), skipped if complex.
 
 ## Handing this to another agent
 
@@ -33,20 +29,20 @@ point it at `SCOPE.md` and `AGENTS.md` as well.
 
 Opening message that works:
 
-> Read `SCOPE.md`, `AGENTS.md` and `HANDOFF.md` in this repository. The project is
-> paused pending five questions; ask them before writing code. Confirm the tree is
-> green with `npm run test:all` and `npm run test:pdf`.
+> Read `SCOPE.md`, `AGENTS.md` and `HANDOFF.md` in this repository. All five
+> open questions have been answered. Confirm the tree is green with `npm run test:all`
+> and `npm run test:pdf`.
 
 ## Scope — read `SCOPE.md` first
 
-Committed: **six sources** — article, Facebook, Twitter/X, Reddit (built), plus
-YouTube and Telegram public channels (next). Outputs are **Markdown, PDF, HTML
-and PNG/JPEG only**. Edge and Chrome only.
+Committed: **five sources** — article, Facebook, Twitter/X, Reddit (built), plus
+Telegram public channels (next). Outputs are **Markdown, PDF, HTML and PNG/JPEG only**.
+Edge and Chrome only.
 
-Explicitly out: Bluesky, Mastodon, Hacker News, LinkedIn, Instagram, Threads,
-WhatsApp, Slack, Discord; JSON/CSV/EPUB/DOCX/WARC/MHTML/Notion/Logseq/Joplin/
-Zotero; search, tags, highlights, reading status; AI and automation; Safari and
-Firefox; i18n.
+Explicitly out: YouTube, Bluesky, Mastodon, Hacker News, LinkedIn, Instagram,
+Threads, WhatsApp, Slack, Discord; JSON/CSV/EPUB/DOCX/WARC/MHTML/Notion/Logseq/
+Joplin/Zotero; search, tags, highlights, reading status; AI and automation;
+Safari and Firefox; i18n.
 
 The Obsidian per-site note format is **open**, awaiting the owner's spec. The
 renderer, frontmatter schema and folder layout are frozen until it arrives.
@@ -222,12 +218,12 @@ Full versions, with what failed first and a pivot diagram, live in
 
 ## Next moves (agreed order)
 
-1. **YouTube adapter** — 1.5d. Metadata, description, thumbnail, transcript with timestamps.
-2. **Telegram adapter** — 1.5d. Public channel pages only (`t.me/s/<channel>`), no login, no export import.
-3. **Obsidian format revision** — when the owner's per-site spec lands, update `render.js` and the frontmatter schema in one pass. Nothing else touches the renderer before then.
+1. **Telegram adapter** — 1.5d. Public channel pages only (`t.me/s/<channel>`), one note per message, no login, no export import.
+2. **Obsidian format update & engagement removal** — update `render.js` to drop engagement callout and wire tests accordingly.
+3. **Quick Save toggle & Vault folder option** — support toggleable Quick Save to the default `Web Clipper Manager` / `Web Clipping` folder vs manual folder selection.
 4. **Selection clip + element picker** — 2d. Both reuse the Turndown path.
 
-Not on the roadmap any more: thread engine, Bluesky, Mastodon, Hacker News,
+Not on the roadmap any more: YouTube, thread engine, Bluesky, Mastodon, Hacker News,
 search, note merging, tags, highlights, AI. See `SCOPE.md` for why.
 
 Product intent, feature list and effort notes: `docs/PRODUCT.md`. System design:
