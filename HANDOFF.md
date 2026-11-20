@@ -44,8 +44,7 @@ Threads, WhatsApp, Slack, Discord; JSON/CSV/EPUB/DOCX/WARC/MHTML/Notion/Logseq/
 Joplin/Zotero; search, tags, highlights, reading status; AI and automation;
 Safari and Firefox; i18n.
 
-The Obsidian per-site note format is **open**, awaiting the owner's spec. The
-renderer, frontmatter schema and folder layout are frozen until it arrives.
+The Obsidian note format and destination layout are **settled** (see `SCOPE.md` → Settled Decisions).
 
 `AGENTS.md` carries these rules for any future agent session. `SCOPE.md` is
 authoritative if files disagree.
@@ -199,7 +198,7 @@ Full versions, with what failed first and a pivot diagram, live in
 8. **`asset://name` is the contract between renderer and service.** PDF and HTML export both replace it: local file → data URI; no service → original remote URL.
 9. **The debugger is attached per operation and always detached.** Never leave it attached, or the DevTools banner sticks.
 10. **Accessibility is asserted in markup, not eyeballed.** `test/a11y-check.js` enforces accessible names, control labels, live regions, unique ids, and that every id the page script looks up still exists. It caught a real regression while this was being written (an input lost its `aria-label`). Async state (errors, saved status, source badge) goes through `role="alert"` / `role="status"` rather than appearing silently.
-11. **Scope is deliberately narrow, and pruning is permanent.** Six sources, four output formats, two browsers. Organisation, tagging, search, highlights and AI are done downstream by the owner, so building them here duplicates work and splits the source of truth. Rejected items live in `SCOPE.md` under "Out of scope" precisely so a future session does not rediscover them as "easy wins".
+11. **Scope is deliberately narrow, and pruning is permanent.** Five sources, four output formats, two browsers. Organisation, tagging, search, highlights and AI are done downstream by the owner, so building them here duplicates work and splits the source of truth. Rejected items live in `SCOPE.md` under "Out of scope" precisely so a future session does not rediscover them as "easy wins".
 12. **The product name is Web Clipper Manager; the `omni-` prefix stays.** Note IDs and asset filenames were not renamed with the product, because the prefix already exists inside every note in a vault.
 
 ## Known bugs / sharp edges

@@ -4,7 +4,7 @@ Clip a **Facebook post**, a **Twitter/X post**, a **Reddit thread** or a **web a
 
 Everything runs locally. No accounts, no telemetry, no cloud.
 
-**Scope:** six sources, four output formats, Edge and Chrome. YouTube and Telegram are the two remaining sources, held pending format decisions. Organisation, tagging, search and AI are handled downstream, not here. See [`SCOPE.md`](SCOPE.md).
+**Scope:** five sources, four output formats, Edge and Chrome. Telegram (public channels) is the remaining source; YouTube is explicitly out of scope. Organisation, tagging, search and AI are handled downstream, not here. See [`SCOPE.md`](SCOPE.md).
 
 ---
 
@@ -14,7 +14,7 @@ Everything runs locally. No accounts, no telemetry, no cloud.
 |---|---|---|
 | ✅ | Article | Title, author, date, body, images, code, lists, quotes |
 | ✅ | Facebook post | Text, author, timestamp, photos, unwrapped outbound links |
-| ✅ | Twitter / X post | Text, author, handle, avatar, date, original-resolution images, engagement |
+| ✅ | Twitter / X post | Text, author, handle, date, original-resolution images (optional FxTwitter metadata or DOM-only) |
 | ✅ | Reddit post | Title, selftext, author, subreddit, score, gallery images, top comments |
 | ✅ | One format | Single normalized `Clip` → one renderer, identical skeleton for all sources |
 | ✅ | Stable `id` | `omni-<hash of canonical URL>` in frontmatter — same page ⇒ same ID |
@@ -39,7 +39,7 @@ targets, search, tags, highlights, reading status, AI features, Firefox and
 Safari. [`SCOPE.md`](SCOPE.md) records why, so a future session does not re-add
 them.
 
-YouTube and Telegram are in scope and not yet written.
+Telegram (public channels) is in scope and next to build. YouTube is out of scope.
 
 ---
 

@@ -235,7 +235,7 @@ check('renderNote emits frontmatter, callout and body', () => {
       publishedAt: '2006-03-21T20:50:14Z',
       author: { name: 'jack', handle: '@jack' },
       images: [],
-      engagement: { likes: 311113, reposts: 124525 },
+      links: [{ url: 'https://example.com/ref', text: 'Reference' }],
     },
     'body text',
     {}
@@ -246,8 +246,8 @@ check('renderNote emits frontmatter, callout and body', () => {
   assertIncludes(note, 'author_handle: "@jack"');
   assertIncludes(note, '> [!info] Source');
   assertIncludes(note, '**jack** (@jack)');
-  assertIncludes(note, '> [!quote]- Engagement at capture');
-  assertIncludes(note, '311,113');
+  assert(!note.includes('Engagement at capture'), 'engagement callout should be removed');
+  assertIncludes(note, '[Reference](https://example.com/ref)');
   assertIncludes(note, 'body text');
 });
 
@@ -406,7 +406,6 @@ check('renderNote flags a partial capture', () => {
     check('extracts handle', () => assert(clip.author.handle === '@jack', clip.author.handle));
     check('parses the old date format', () => assert(clip.publishedAt.startsWith('2006-03-21'), clip.publishedAt));
     check('upgrades image to original size', () => assertIncludes(clip.images[0].url, 'name=orig'));
-    check('records engagement', () => assert(clip.engagement.likes === 311113));
   }
 
   console.log('\ntwitter (dom fallback)');

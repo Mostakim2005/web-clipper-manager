@@ -34,15 +34,17 @@ for (const file of files) {
   }
 }
 
-// Manifest must be valid JSON with matching content-script order.
+// Manifest must be valid JSON and background CONTENT_FILES must all resolve.
 const manifest = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
-const declared = manifest.content_scripts[0].js;
+const bgSrc = fs.readFileSync(path.join(EXT, manifest.background.service_worker), 'utf8');
+const cfMatch = bgSrc.match(/const CONTENT_FILES = \[([\s\S]*?)\];/);
+const declared = cfMatch ? [...cfMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]) : [];
 const missing = declared.filter((file) => !fs.existsSync(path.join(EXT, file)));
-if (missing.length) {
+if (!declared.length || missing.length) {
   failed += 1;
-  console.log(`  FAIL manifest references missing files: ${missing.join(', ')}`);
+  console.log(`  FAIL CONTENT_FILES missing or broken: ${missing.join(', ') || '(empty)'}`);
 } else {
-  console.log(`  ok   manifest content scripts resolve (${declared.length} files)`);
+  console.log(`  ok   on-demand CONTENT_FILES resolve (${declared.length} files)`);
 }
 
 const background = manifest.background.service_worker;

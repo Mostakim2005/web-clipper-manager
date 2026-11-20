@@ -21,7 +21,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
-const VERSION = '0.3.0';
+const VERSION = require('../package.json').version;
 const PORT = Number(process.env.OMNI_PORT || 8787);
 const PINNED_EXT_ID = 'deolmeeiaonpcokalgopkcihblojihlh';
 const ALLOWED_ORIGINS = new Set(
@@ -481,46 +481,6 @@ function startHttp() {
   });
 }
 
-/* -------------------------------------------------------------- stdio mode */
-
-function startStdio() {
-  const writeFrame = (payload) => {
-    const json = Buffer.from(JSON.stringify(payload), 'utf8');
-    const header = Buffer.alloc(4);
-    header.writeUInt32LE(json.length, 0);
-    process.stdout.write(Buffer.concat([header, json]));
-  };
-
-  let incoming = Buffer.alloc(0);
-
-  const handleFrame = (text) => {
-    let message;
-    try {
-      message = JSON.parse(text);
-    } catch (error) {
-      return writeFrame({ ok: false, error: `Bad JSON: ${error.message}` });
-    }
-    Promise.resolve()
-      .then(() => dispatch(message))
-      .then((result) => writeFrame({ ok: true, ...result }))
-      .catch((error) => writeFrame({ ok: false, error: error.message }));
-  };
-
-  process.stdin.on('data', (chunk) => {
-    incoming = Buffer.concat([incoming, chunk]);
-    while (incoming.length >= 4) {
-      const length = incoming.readUInt32LE(0);
-      if (incoming.length < 4 + length) return;
-      const body = incoming.subarray(4, 4 + length).toString('utf8');
-      incoming = incoming.subarray(4 + length);
-      handleFrame(body);
-    }
-  });
-  process.stdin.on('error', () => process.exit(0));
-  process.stdin.on('end', () => process.exit(0));
-}
-
 /* -------------------------------------------------------------------- boot */
 
-if (process.argv.includes('--stdio')) startStdio();
-else startHttp();
+startHttp();

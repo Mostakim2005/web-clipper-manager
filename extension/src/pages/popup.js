@@ -1,3 +1,6 @@
+import { send } from '../lib/rpc.js';
+import { getSettings, setSettings } from '../lib/settings.js';
+
 const $ = (id) => document.getElementById(id);
 
 const ui = {
@@ -15,7 +18,7 @@ const ui = {
   saved: $('saved'),
 };
 
-const state = { tabId: null, notePath: '', assetDir: '', assets: [], hasHost: false };
+const state = { tabId: null, notePath: '', assetDir: '', assets: [], hasHost: false, vaultPath: '' };
 
 const SOURCE_LABEL = {
   facebook: 'Facebook',
@@ -34,18 +37,6 @@ function detectSource(url) {
     /* ignore */
   }
   return 'article';
-}
-
-function send(type, payload) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({ type, payload }, (response) => {
-      const err = chrome.runtime.lastError;
-      if (err) return reject(new Error(err.message));
-      if (!response) return reject(new Error('No response from background worker'));
-      if (response.ok === false) return reject(new Error(response.error));
-      return resolve(response.data);
-    });
-  });
 }
 
 function show(pane) {
@@ -90,6 +81,9 @@ async function downloadDataUrl(dataUrl, filename) {
 }
 
 async function init() {
+  const settings = await getSettings();
+  state.vaultPath = settings.vaultPath || '';
+  if ($('quickSave')) $('quickSave').checked = settings.quickSave !== false;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   state.tabId = tab?.id ?? null;
 
@@ -148,7 +142,36 @@ async function capture() {
   }
 }
 
+async function pickFolder() {
+  if (!state.vaultPath) {
+    notice('Set your vault path in Options first.', true);
+    return;
+  }
+  try {
+    const result = await send('PICK_FOLDER', { initial: state.vaultPath });
+    if (!result || !result.path) return;
+    const norm = (p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+    const root = norm(state.vaultPath);
+    const picked = norm(result.path);
+    let rel = '';
+    if (picked.toLowerCase() === root.toLowerCase()) rel = '';
+    else if (picked.toLowerCase().startsWith(`${root.toLowerCase()}/`)) rel = picked.slice(root.length + 1);
+    else {
+      notice(`Picked folder must be inside ${state.vaultPath}.`, true);
+      return;
+    }
+    const file = (ui.notePath.value.split('/').pop() || state.notePath.split('/').pop() || 'clip.md').trim();
+    ui.notePath.value = rel ? `${rel}/${file}` : file;
+    notice(`Destination set → ${rel || '(vault root)'}`);
+  } catch (error) {
+    notice(`Folder picker failed: ${error.message}`, true);
+  }
+}
+
 async function save() {
+  if ($('quickSave') && !$('quickSave').checked && ui.notePath.value.trim() === state.notePath && state.vaultPath) {
+    await pickFolder();
+  }
   setBusy(true);
   try {
     const result = await send('SAVE', {
@@ -287,6 +310,8 @@ $('pagePdf').addEventListener('click', exportPagePdf);
 $('img').addEventListener('click', exportImage);
 $('html').addEventListener('click', exportHtml);
 $('copy').addEventListener('click', copy);
+$('pickFolder').addEventListener('click', pickFolder);
+$('quickSave').addEventListener('change', (e) => setSettings({ quickSave: e.target.checked }));
 $('options').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 init();

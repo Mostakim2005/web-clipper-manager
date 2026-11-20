@@ -158,17 +158,6 @@ export function clipId(clip) {
   return `omni-${shortHash(basis, 10)}`;
 }
 
-/** Relative path from one vault folder to another, both vault-relative POSIX. */
-export function relativePath(fromDir, toPath) {
-  const from = String(fromDir || '').split('/').filter(Boolean);
-  const to = String(toPath || '').split('/').filter(Boolean);
-  const file = to.pop() || '';
-  let common = 0;
-  while (common < from.length && common < to.length && from[common] === to[common]) common += 1;
-  const up = new Array(from.length - common).fill('..');
-  return [...up, ...to.slice(common), file].filter(Boolean).join('/');
-}
-
 /** Relative directory path from one vault folder to another, with trailing slash. */
 export function relativeDir(fromDir, toDir) {
   const from = String(fromDir || '').split('/').filter(Boolean);
@@ -212,31 +201,11 @@ export function normalizeImageLinks(markdown) {
     .trim();
 }
 
-function engagementLine(clip) {
-  const parts = [];
-  const e = clip.engagement || {};
-  const push = (label, value) => {
-    if (value === null || value === undefined || value === '') return;
-    parts.push(`${label} ${typeof value === 'number' ? value.toLocaleString('en-US') : value}`);
-  };
-
-  push('♥', e.likes);
-  push('⟳', e.reposts !== undefined ? e.reposts : e.retweets);
-  push('💬', e.replies);
-  push('❝', e.quotes);
-  push('👁', e.views);
-  push('▲', e.upvotes);
-  if (e.reactions) parts.push(e.reactions);
-
-  return parts.join(' · ');
-}
-
 /**
  * Assemble the final note. Identical skeleton for every source so downstream
  * tooling (Bases, Dataview, search) sees a consistent shape.
  */
 export function renderNote(clip, resolvedBody, options = {}) {
-  const includeEngagement = options.includeEngagement !== false;
   const includeId = options.includeId !== false;
   const includeSourceCallout = options.includeSourceCallout !== false;
   const tokens = formatDateTokens(clip);
@@ -310,10 +279,19 @@ export function renderNote(clip, resolvedBody, options = {}) {
 
   if (resolvedBody) lines.push(resolvedBody, '');
 
-  const engagement = engagementLine(clip);
-  if (includeEngagement && engagement) {
-    lines.push('> [!quote]- Engagement at capture');
-    lines.push(`> ${engagement}`);
+  if (clip.extra && clip.extra.quoteUrl) {
+    lines.push(`> Quoted: ${clip.extra.quoteUrl}`, '');
+  }
+
+  const extraLinks = (clip.links || []).filter(
+    (item) => item && item.url && (!resolvedBody || !resolvedBody.includes(item.url))
+  );
+  if (extraLinks.length) {
+    lines.push('## Links');
+    extraLinks.forEach((item) => {
+      const label = (item.text || item.url).replace(/[\[\]]/g, '');
+      lines.push(`- [${label}](${item.url})`);
+    });
     lines.push('');
   }
 

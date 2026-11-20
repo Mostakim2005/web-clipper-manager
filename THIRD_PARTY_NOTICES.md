@@ -28,8 +28,7 @@ extension or in any released artifact.
 | Project | Licence | Copyright | Used for | Licence text |
 | --- | --- | --- | --- | --- |
 | [jsdom](https://github.com/jsdom/jsdom) | MIT | © 2010 Elijah Insua and contributors | Runs the extraction pipeline against HTML fixtures in tests | [upstream](https://github.com/jsdom/jsdom/blob/main/LICENSE.txt) |
-| [puppeteer-core](https://github.com/puppeteer/puppeteer) | Apache-2.0 | © 2017 Google Inc. and contributors | Drives the installed Edge/Chrome for the note PDF test | [upstream](https://www.apache.org/licenses/LICENSE-2.0) |
-| [js-yaml](https://github.com/nodeca/js-yaml) | MIT | © 2011-2015 Vitaly Puzrin | Used only by test fixtures | [upstream](https://github.com/nodeca/js-yaml/blob/master/LICENSE) |
+| [puppeteer-core](https://github.com/puppeteer/puppeteer) | Apache-2.0 | © 2017 Google Inc. and contributors | Local-service runtime dependency: drives installed Edge/Chrome for Note PDF export | [upstream](https://www.apache.org/licenses/LICENSE-2.0) |
 
 ## Fonts, icons and assets
 

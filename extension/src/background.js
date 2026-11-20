@@ -12,7 +12,6 @@ import { marked } from './vendor/marked.esm.js';
 
 const CONTENT_FILES = [
   'src/vendor/readability.js',
-  'src/vendor/readability-readerable.js',
   'src/vendor/turndown.js',
   'src/vendor/turndown-plugin-gfm.js',
   'src/content/lib.js',
@@ -173,10 +172,12 @@ async function buildNote(tab, options = {}) {
     throw new Error('This page cannot be clipped. Open a normal website first.');
   }
 
-  await ensureContent(tab.id);
-  const clip = await sendToTab(tab.id, { type: 'EXTRACT', payload: options });
-
   const settings = await getSettings();
+  await ensureContent(tab.id);
+  const clip = await sendToTab(tab.id, {
+    type: 'EXTRACT',
+    payload: { useFxTwitterMetadata: settings.useFxTwitterMetadata, ...options },
+  });
   const host =
     settings.preferNativeHost && settings.vaultPath ? await hostStatus() : { ok: false, reason: 'not configured' };
   const useLocalAssets = Boolean(host.ok && settings.vaultPath);
@@ -192,7 +193,6 @@ async function buildNote(tab, options = {}) {
   });
 
   const markdown = renderNote(clip, body, {
-    includeEngagement: settings.includeEngagement,
     includeId: settings.includeId,
     includeSourceCallout: settings.includeSourceCallout,
   });
@@ -459,7 +459,6 @@ async function handle(message) {
         hasHost: built.hasHost,
         hostReason: built.hostReason,
         assets: built.assets,
-        hasHtml: Boolean(built.archiveHtml),
         clip: {
           source: built.clip.source,
           kind: built.clip.kind,
@@ -488,13 +487,6 @@ async function handle(message) {
       const { initial } = message.payload || {};
       const result = await serviceCall({ op: 'pickFolder', initial: initial || '' }, 180_000);
       return { path: result.path || '' };
-    }
-
-    case 'QUICK_CLIP': {
-      const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
-      const built = await buildNote(tab, {});
-      const result = await persist(built.notePath, built.markdown, built.assets, built.assetDir);
-      return { notePath: result.notePath || built.notePath };
     }
 
     case 'EXPORT_PDF': {
@@ -617,13 +609,6 @@ async function handle(message) {
       return { html: remoteHtml, filename, saved: false, remoteImages: true };
     }
 
-    case 'EXPORT_PNG': {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) throw new Error('No active tab');
-      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-      return { dataUrl };
-    }
-
     default:
       throw new Error(`Unknown message type: ${message.type}`);
   }
@@ -654,7 +639,7 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
       id: 'omni-clip',
       title: 'Clip with Web Clipper Manager',
-      contexts: ['page', 'selection', 'link', 'image'],
+      contexts: ['page'],
     });
   });
 });

@@ -254,9 +254,6 @@
     clip.body = OC.tidyMarkdown(clip.body);
     clip.links = facebookLinks(cleaned);
 
-    const reaction = cleaned.querySelector('[aria-label*="reaction"], [aria-label*="like"]');
-    clip.engagement = reaction ? { reactions: OC.textOf(reaction).slice(0, 80) } : {};
-
     if (!clip.body.trim()) throw new Error('The post text came back empty.');
   }
 
@@ -302,7 +299,6 @@
         url: upgradeTwitterImage(url),
         alt: item.altText || item.alt_text || '',
         role: isVideo ? 'video-poster' : 'post',
-        videoUrl: isVideo ? item.url : '',
       });
     }
     return out;
@@ -333,12 +329,12 @@
     };
   }
 
-  async function extractTwitter(clip) {
+  async function extractTwitter(clip, options = {}) {
     const statusId = (location.pathname.match(/\/status(?:es)?\/(\d+)/) || [])[1] || '';
     const dom = readTwitterDom();
 
     let tweet = null;
-    if (statusId) {
+    if (statusId && options.useFxTwitterMetadata !== false) {
       try {
         const data = await OC.ask('FETCH_JSON', {
           url: `https://api.fxtwitter.com/status/${statusId}`,
@@ -360,21 +356,12 @@
         name: tweet.author?.name || dom?.authorName || '',
         handle: tweet.author?.screen_name ? `@${tweet.author.screen_name}` : dom?.handle ? `@${dom.handle}` : '',
         profileUrl: tweet.author?.url || (dom?.handle ? `https://x.com/${dom.handle}` : ''),
-        avatar: tweet.author?.avatar_url || '',
       };
       clip.title = OC.firstLines(text, 1).slice(0, 100);
       clip.publishedAt = OC.isoDate(tweet.created_at) || dom?.publishedAt || '';
       clip.body = OC.tidyMarkdown(text);
       clip.images = normalizeTwitterMedia(tweet.media);
-      clip.engagement = {
-        likes: tweet.likes ?? null,
-        reposts: tweet.retweets ?? null,
-        replies: tweet.replies ?? null,
-        quotes: tweet.quotes ?? null,
-        views: tweet.views ?? null,
-      };
       clip.extra.quoteUrl = tweet.quote?.url || '';
-      clip.extra.isNoteTweet = Boolean(tweet.is_note_tweet);
     } else {
       clip.author = {
         name: dom.authorName,
@@ -492,8 +479,6 @@
       ? new Date(post.created_utc * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
       : '';
     clip.extra.subreddit = post.subreddit_name_prefixed || '';
-    clip.extra.flair = post.link_flair_text || '';
-    clip.engagement = { upvotes: post.score ?? null, comments: post.num_comments ?? null };
     clip.images = redditImages(post);
 
     const parts = [];
@@ -507,7 +492,7 @@
     }
 
     const thread = data?.[1]?.data?.children || [];
-    const comments = redditComments(thread, 25);
+    const comments = redditComments(thread, 5);
     if (comments.markdown) {
       parts.push('---');
       parts.push(`### Comments (${comments.shown} shown)`);
@@ -536,12 +521,11 @@
       canonicalUrl: (document.querySelector('link[rel="canonical"]') || {}).href || '',
       capturedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
       title: '',
-      author: { name: '', handle: '', profileUrl: '', avatar: '' },
+      author: { name: '', handle: '', profileUrl: '' },
       publishedAt: '',
       body: '',
       images: [],
       links: [],
-      engagement: {},
       extra: {},
       notes: [],
       completeness: { score: 1, missing: [], notes: [] },
@@ -550,7 +534,7 @@
     if (!clip.canonicalUrl) delete clip.canonicalUrl;
 
     if (requested === 'facebook') await extractFacebook(clip);
-    else if (requested === 'twitter') await extractTwitter(clip);
+    else if (requested === 'twitter') await extractTwitter(clip, options);
     else if (requested === 'reddit') await extractReddit(clip);
     else extractArticle(clip);
 

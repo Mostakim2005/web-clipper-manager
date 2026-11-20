@@ -50,7 +50,20 @@
           spellcheck="false"
           aria-label="Note path"
         />
+        <button
+          id="pickFolder"
+          class="ghost"
+          type="button"
+          aria-label="Choose vault folder"
+          title="Choose destination folder inside the vault"
+        >
+          Folder…
+        </button>
       </div>
+      <label class="quick-save-row">
+        <input id="quickSave" type="checkbox" />
+        <span>Quick Save to default folder</span>
+      </label>
       <div class="stats" id="stats"></div>
       <textarea id="markdown" spellcheck="false" aria-label="Markdown content"></textarea>
       <div class="actions">

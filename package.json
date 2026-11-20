@@ -14,17 +14,21 @@
     "keygen": "node tools/gen-key.js",
     "service": "node local-service/host.js"
   },
-  "keywords": ["obsidian", "web-clipper", "markdown", "browser-extension"],
+  "keywords": [
+    "obsidian",
+    "web-clipper",
+    "markdown",
+    "browser-extension"
+  ],
   "license": "PolyForm-Noncommercial-1.0.0",
   "dependencies": {
-    "@mozilla/readability": "^0.6.0",
-    "js-yaml": "^4.1.0",
-    "marked": "^16.4.1",
-    "turndown": "^7.2.0",
-    "turndown-plugin-gfm": "^1.0.2"
+    "puppeteer-core": "^25.16.0"
   },
   "devDependencies": {
     "jsdom": "^27.0.0",
-    "puppeteer-core": "^25.16.0"
+    "@mozilla/readability": "^0.6.0",
+    "marked": "^16.4.1",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2"
   }
 }

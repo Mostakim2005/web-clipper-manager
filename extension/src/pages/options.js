@@ -1,4 +1,5 @@
 import { DEFAULTS, getSettings, setSettings } from '../lib/settings.js';
+import { send } from '../lib/rpc.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -8,22 +9,11 @@ const TEXT_FIELDS = [
   'attachmentFolder',
   'filenameTemplate',
   'serviceUrl',
+  'serviceToken',
 ];
 const SELECT_FIELDS = ['attachmentMode', 'embedStyle', 'imageFormat'];
 const NUMBER_FIELDS = ['embedWidth'];
-const TOGGLES = ['includeId', 'includeEngagement', 'includeSourceCallout', 'preferNativeHost'];
-
-function send(type, payload) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({ type, payload }, (response) => {
-      const err = chrome.runtime.lastError;
-      if (err) return reject(new Error(err.message));
-      if (!response) return reject(new Error('No response'));
-      if (response.ok === false) return reject(new Error(response.error));
-      return resolve(response.data);
-    });
-  });
-}
+const TOGGLES = ['includeId', 'includeSourceCallout', 'quickSave', 'useFxTwitterMetadata', 'preferNativeHost'];
 
 function status(message, warn = false) {
   const el = $('status');

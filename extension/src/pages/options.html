@@ -134,7 +134,7 @@
         <label>
           <span>Notes folder (inside the vault)</span>
           <div class="field-row">
-            <input id="notesFolder" type="text" placeholder="Clippings" />
+            <input id="notesFolder" type="text" placeholder="Web Clipping" />
             <button id="browseNotes" class="ghost" type="button">Browse…</button>
           </div>
         </label>
@@ -187,8 +187,8 @@
         <span>Add the <code>&gt; [!info] Source</code> callout</span>
       </label>
       <label class="check">
-        <input id="includeEngagement" type="checkbox" />
-        <span>Include engagement counts (likes, upvotes, replies)</span>
+        <input id="quickSave" type="checkbox" />
+        <span>Quick Save directly into the default notes folder</span>
       </label>
 
       <h2>Capture</h2>
@@ -205,6 +205,14 @@
           <input id="serviceUrl" type="text" placeholder="http://127.0.0.1:8787" />
         </label>
       </div>
+      <label>
+        <span>Service auth token (optional — must match <code>OMNI_TOKEN</code>)</span>
+        <input id="serviceToken" type="text" placeholder="Leave blank if OMNI_TOKEN is unset" />
+      </label>
+      <label class="check">
+        <input id="useFxTwitterMetadata" type="checkbox" />
+        <span>Use public FxTwitter metadata API for Twitter/X clips (disable for strict DOM-only privacy)</span>
+      </label>
       <label class="check">
         <input id="preferNativeHost" type="checkbox" />
         <span>Write directly to the vault through the local service</span>

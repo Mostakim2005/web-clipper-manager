@@ -1,7 +1,8 @@
 export const DEFAULTS = {
   // Vault
   vaultPath: '',
-  notesFolder: 'Clippings',
+  notesFolder: 'Web Clipping',
+  quickSave: true,
 
   // Attachments
   attachmentMode: 'fixed', // fixed | noteRelative | sameAsNote
@@ -12,11 +13,11 @@ export const DEFAULTS = {
   embedStyle: 'wikilink', // wikilink | markdown
   embedWidth: 0,
   includeId: true,
-  includeEngagement: true,
   includeSourceCallout: true,
 
   // Capture
   imageFormat: 'png', // png | jpeg
+  useFxTwitterMetadata: true,
 
   // Service
   serviceUrl: 'http://127.0.0.1:8787',
