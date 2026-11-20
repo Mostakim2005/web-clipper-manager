@@ -37,6 +37,7 @@
   /* ====================================================================== */
 
   function extractArticle(clip) {
+    const dimMap = OC.collectImageDimensions(document);
     const clone = document.cloneNode(true);
 
     // Readability resolves relative URLs against baseURI; a detached clone loses
@@ -53,7 +54,7 @@
     const article = reader.parse();
 
     if (!article || !article.content) {
-      throw new Error('Could not isolate the article body. Try selecting text and clipping the selection.');
+      throw new Error('Could not isolate the article body on this page.');
     }
 
     clip.kind = 'article';
@@ -70,7 +71,7 @@
     const holder = document.createElement('div');
     holder.innerHTML = article.content;
     OC.absolutize(holder);
-    OC.stashImages(holder, clip.images, 'body');
+    OC.stashImages(holder, clip.images, 'body', dimMap);
     // Keep the cleaned DOM for the self-contained HTML archive. Image `src`
     // values are still `omniimg:n`; the background maps them to asset names.
     clip.html = holder.innerHTML;
@@ -224,13 +225,14 @@
 
     await expandFacebookSeeMore(article);
 
-    clip.kind = 'post';
-    clip.author = facebookAuthor(article);
-    clip.publishedAt = facebookTimestamp(article);
-
+    const dimMap = OC.collectImageDimensions(article);
     const cleaned = article.cloneNode(true);
-    // Comments are nested articles; drop them so they cannot leak into the body.
+    // Comments are nested articles; drop them first so metadata/links/images cannot leak.
     cleaned.querySelectorAll('[role="article"]').forEach((node) => node.remove());
+
+    clip.kind = 'post';
+    clip.author = facebookAuthor(cleaned);
+    clip.publishedAt = facebookTimestamp(cleaned);
 
     const textEl = facebookTextElement(cleaned);
     if (!textEl) throw new Error('Found the post but could not isolate its text.');
@@ -238,7 +240,7 @@
     // Post media sits beside the text block, not inside it, so stash across the
     // whole cleaned post. Avatars and emoji are dropped by the size filter.
     OC.absolutize(cleaned);
-    OC.stashImages(cleaned, clip.images, 'post');
+    OC.stashImages(cleaned, clip.images, 'post', dimMap);
 
     const holder = document.createElement('div');
     holder.appendChild(textEl.cloneNode(true));
@@ -250,9 +252,9 @@
       if (!used.has(String(index))) clip.body += `\n\n@@IMG:${index}@@`;
     });
     clip.body = OC.tidyMarkdown(clip.body);
-    clip.links = facebookLinks(article);
+    clip.links = facebookLinks(cleaned);
 
-    const reaction = article.querySelector('[aria-label*="reaction"], [aria-label*="like"]');
+    const reaction = cleaned.querySelector('[aria-label*="reaction"], [aria-label*="like"]');
     clip.engagement = reaction ? { reactions: OC.textOf(reaction).slice(0, 80) } : {};
 
     if (!clip.body.trim()) throw new Error('The post text came back empty.');
@@ -272,15 +274,15 @@
 
   function applyTwitterFacets(text, facets) {
     if (!Array.isArray(facets) || !facets.length) return text;
-    let out = text;
+    const chars = Array.from(String(text || ''));
     const ordered = [...facets].sort((a, b) => (b.indices?.[0] || 0) - (a.indices?.[0] || 0));
     for (const facet of ordered) {
       const [start, end] = facet.indices || [];
       const replacement = facet.replacement || facet.original;
       if (typeof start !== 'number' || typeof end !== 'number' || !replacement) continue;
-      out = out.slice(0, start) + replacement + out.slice(end);
+      chars.splice(start, Math.max(0, end - start), ...Array.from(replacement));
     }
-    return out;
+    return chars.join('');
   }
 
   function normalizeTwitterMedia(media) {
@@ -392,7 +394,10 @@
       clip.images = dom.images.map((image) => ({ ...image, role: 'post' }));
     }
 
-    if (!clip.body.trim() && clip.images.length) clip.body = '_Media-only post._';
+    if (clip.images.length) {
+      const tokens = clip.images.map((_, index) => `@@IMG:${index}@@`).join('\n\n');
+      clip.body = clip.body.trim() ? `${clip.body.trim()}\n\n${tokens}` : tokens;
+    }
     if (!clip.body.trim()) throw new Error('The tweet text came back empty.');
   }
 

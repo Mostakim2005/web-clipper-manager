@@ -135,6 +135,25 @@ async function save() {
     patch[field] = $(field).checked;
   });
 
+  // Validate loopback service URL and clamp numeric bounds.
+  const rawUrl = patch.serviceUrl || DEFAULTS.serviceUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      !['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname.toLowerCase())
+    ) {
+      status('Service URL must use http(s) on 127.0.0.1 or localhost.', true);
+      return false;
+    }
+    patch.serviceUrl = parsed.origin;
+  } catch {
+    status('Service URL is not a valid URL.', true);
+    return false;
+  }
+  patch.embedWidth = Math.max(0, Math.min(4000, Math.round(patch.embedWidth || 0)));
+  $('embedWidth').value = patch.embedWidth;
+
   // Paths are stored POSIX-style; the service normalises backslashes anyway.
   patch.notesFolder = patch.notesFolder.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   patch.attachmentFolder = patch.attachmentFolder.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -143,12 +162,15 @@ async function save() {
   status('Saved.');
   refreshHostStatus();
   setTimeout(() => status(''), 2500);
+  return true;
 }
 
 async function testWrite() {
-  status('Testing…');
+  status('Saving and testing…');
+  const saved = await save();
+  if (!saved) return;
   try {
-    const notesFolder = $('notesFolder').value.trim() || 'Clippings';
+    const notesFolder = $('notesFolder').value.trim() || DEFAULTS.notesFolder;
     const result = await send('SAVE', {
       notePath: `${notesFolder}/test-omni-clipper.md`,
       markdown:

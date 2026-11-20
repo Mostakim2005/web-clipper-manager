@@ -78,8 +78,35 @@
     });
   };
 
-  /** Pick the highest-fidelity URL for an <img>, preferring real sources over lazy placeholders. */
+  function pickFromSrcset(srcset) {
+    if (!srcset) return '';
+    let bestUrl = '';
+    let bestScore = -1;
+    for (const part of String(srcset).split(',')) {
+      const tokens = part.trim().split(/\s+/);
+      const url = tokens[0];
+      if (!url || /^data:/i.test(url)) continue;
+      const desc = tokens[1] || '1x';
+      const num = parseFloat(desc) || 1;
+      const score = desc.endsWith('w') ? num : num * 1000;
+      if (score > bestScore) {
+        bestScore = score;
+        bestUrl = url;
+      }
+    }
+    return bestUrl;
+  }
+
+  /** Pick the highest-fidelity URL for an <img>, preferring srcset and real sources over lazy placeholders. */
   OC.bestImageUrl = (img) => {
+    const picture = img.parentElement && img.parentElement.tagName === 'PICTURE' ? img.parentElement : null;
+    const pictureSrc = picture
+      ? [...picture.querySelectorAll('source[srcset]')]
+          .map((s) => pickFromSrcset(s.getAttribute('srcset')))
+          .find(Boolean)
+      : '';
+    const srcsetUrl = pickFromSrcset(img.getAttribute('srcset') || img.getAttribute('data-srcset'));
+
     const candidates = [
       img.currentSrc,
       img.getAttribute('src'),
@@ -87,12 +114,34 @@
       img.getAttribute('data-original'),
       img.getAttribute('data-lazy-src'),
       img.getAttribute('data-url'),
+      srcsetUrl,
+      pictureSrc,
     ].filter(Boolean);
 
     for (let i = candidates.length - 1; i >= 0; i -= 1) {
       if (!/^data:image\/gif;base64,R0lGOD/i.test(candidates[i])) return candidates[i];
     }
     return candidates[0] || '';
+  };
+
+  /** Snapshot rendered image dimensions from the live DOM before cloning into a detached subtree. */
+  OC.collectImageDimensions = (root) => {
+    const map = new Map();
+    if (!root || !root.querySelectorAll) return map;
+    root.querySelectorAll('img').forEach((img) => {
+      const raw = OC.bestImageUrl(img);
+      if (!raw || raw.startsWith('data:')) return;
+      try {
+        const url = new URL(raw, document.baseURI).href;
+        const rect = typeof img.getBoundingClientRect === 'function' ? img.getBoundingClientRect() : null;
+        const width = img.naturalWidth || Math.round(rect?.width || 0) || Number(img.getAttribute('width')) || 0;
+        const height = img.naturalHeight || Math.round(rect?.height || 0) || Number(img.getAttribute('height')) || 0;
+        if (width && height) map.set(url, { width, height });
+      } catch {
+        /* ignore malformed URLs */
+      }
+    });
+    return map;
   };
 
   const looksLikeChrome = (url) =>
@@ -102,7 +151,7 @@
    * Replace every meaningful <img> with a `omniimg:<index>` sentinel and record it
    * in `images`. Turndown then emits `![alt](omniimg:3)`, which becomes a token.
    */
-  OC.stashImages = (root, images, role = 'inline') => {
+  OC.stashImages = (root, images, role = 'inline', dimMap = null) => {
     root.querySelectorAll('img').forEach((img) => {
       const raw = OC.bestImageUrl(img);
       if (!raw || raw.startsWith('data:')) return img.remove();
@@ -115,8 +164,9 @@
         return img.remove();
       }
 
-      const width = img.naturalWidth || Number(img.getAttribute('width')) || 0;
-      const height = img.naturalHeight || Number(img.getAttribute('height')) || 0;
+      const live = dimMap && dimMap.get(url);
+      const width = img.naturalWidth || Number(img.getAttribute('width')) || (live ? live.width : 0);
+      const height = img.naturalHeight || Number(img.getAttribute('height')) || (live ? live.height : 0);
 
       // Drop obvious UI furniture when we can measure it. Unknown sizes are kept:
       // lazy-loaded post images frequently report 0x0 until they scroll into view.

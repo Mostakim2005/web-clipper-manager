@@ -99,10 +99,14 @@ check('yamlScalar keeps safe words bare', () => {
   assert(render.yamlScalar('clip/twitter') === 'clip/twitter');
 });
 
-check('yamlScalar quotes reserved words and numbers', () => {
+check('yamlScalar quotes reserved words, numbers, scientific/hex and floats', () => {
   assert(render.yamlScalar('true') === '"true"');
   assert(render.yamlScalar('123') === '"123"');
   assert(render.yamlScalar('null') === '"null"');
+  assert(render.yamlScalar('1e5') === '"1e5"');
+  assert(render.yamlScalar('0x10') === '"0x10"');
+  assert(render.yamlScalar('NaN') === '"NaN"');
+  assert(render.yamlScalar('.inf') === '".inf"');
 });
 
 check('yamlScalar quotes punctuation that would break YAML', () => {
@@ -115,8 +119,10 @@ check('sanitizeFilename strips Windows-illegal characters', () => {
   assert(!/[<>:"/\\|?*]/.test(name), `still illegal: ${name}`);
 });
 
-check('sanitizeFilename guards reserved device names', () => {
+check('sanitizeFilename guards reserved device names and Obsidian chars', () => {
   assert(render.sanitizeFilename('CON') !== 'CON');
+  assert(render.sanitizeFilename('CON.txt') !== 'CON.txt');
+  assert(!/[#^\[\]]/.test(render.sanitizeFilename('Topic #1 [draft] ^ref')));
 });
 
 check('buildNoteFilename applies the template', () => {
@@ -390,7 +396,13 @@ check('renderNote flags a partial capture', () => {
     });
     const clip = await window.OC.extract({ source: 'twitter' });
 
-    check('uses the metadata service', () => assert(clip.body === 'just setting up my twttr', clip.body));
+    check('uses the metadata service and embeds image tokens', () => {
+      assertIncludes(clip.body, 'just setting up my twttr');
+      assertIncludes(clip.body, '@@IMG:0@@');
+      const resolved = render.resolveBodyTokens(clip, true, {});
+      assert(resolved.assets.length === 1, 'twitter image asset missing');
+      assertIncludes(resolved.body, '![[omni-');
+    });
     check('extracts handle', () => assert(clip.author.handle === '@jack', clip.author.handle));
     check('parses the old date format', () => assert(clip.publishedAt.startsWith('2006-03-21'), clip.publishedAt));
     check('upgrades image to original size', () => assertIncludes(clip.images[0].url, 'name=orig'));

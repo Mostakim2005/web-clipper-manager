@@ -65,6 +65,12 @@ function clearNotice() {
   ui.saved.classList.remove('warn');
 }
 
+function setBusy(busy) {
+  document.querySelectorAll('#preview .actions button').forEach((btn) => {
+    btn.disabled = busy;
+  });
+}
+
 function safeName(extension) {
   const raw = (ui.notePath.value.split('/').pop() || state.notePath.split('/').pop() || 'clip').replace(
     /\.md$/i,
@@ -126,12 +132,11 @@ async function capture() {
     if (clip.completeness && clip.completeness.missing?.length) {
       bits.push(`${clip.completeness.missing.length} warning(s)`);
     }
-    if (state.assetDir) bits.push(`assets → ${state.assetDir || '.'}`);
+    bits.push(`assets → ${state.assetDir || '.'}`);
     ui.stats.textContent = bits.join('  ·  ');
 
     if (!state.hasHost) {
-      notice('Preview only — local service unavailable, so the note has not been written to your vault.');
-      ui.saved.classList.add('warn');
+      notice('Preview only — local service unavailable, so the note has not been written to your vault.', true);
     } else {
       clearNotice();
     }
@@ -144,8 +149,7 @@ async function capture() {
 }
 
 async function save() {
-  const button = $('save');
-  button.disabled = true;
+  setBusy(true);
   try {
     const result = await send('SAVE', {
       notePath: ui.notePath.value.trim() || state.notePath,
@@ -159,26 +163,35 @@ async function save() {
   } catch (error) {
     notice(`Save failed: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    setBusy(false);
   }
 }
 
 async function download() {
-  await downloadBlob(
-    new Blob([ui.markdown.value], { type: 'text/markdown;charset=utf-8' }),
-    safeName('.md')
-  );
-  notice('Downloaded Markdown file.');
+  try {
+    await downloadBlob(
+      new Blob([ui.markdown.value], { type: 'text/markdown;charset=utf-8' }),
+      safeName('.md')
+    );
+    notice('Downloaded Markdown file.');
+  } catch (error) {
+    if (!/cancel/i.test(error?.message || '')) {
+      notice(`Download failed: ${error.message}`, true);
+    }
+  }
 }
 
 async function copy() {
-  await navigator.clipboard.writeText(ui.markdown.value);
-  notice('Markdown copied to clipboard.');
+  try {
+    await navigator.clipboard.writeText(ui.markdown.value);
+    notice('Markdown copied to clipboard.');
+  } catch (error) {
+    notice(`Copy failed: ${error.message}`, true);
+  }
 }
 
 async function exportPdf() {
-  const button = $('pdf');
-  button.disabled = true;
+  setBusy(true);
   notice('Rendering note PDF…');
   try {
     const result = await send('EXPORT_PDF', {
@@ -190,16 +203,15 @@ async function exportPdf() {
   } catch (error) {
     notice(`PDF failed: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    setBusy(false);
   }
 }
 
 async function exportPagePdf() {
-  const button = $('pagePdf');
-  button.disabled = true;
+  setBusy(true);
   notice('Printing the live page…');
   try {
-    const result = await send('EXPORT_PAGE_PDF', { tabId: state.tabId });
+    const result = await send('EXPORT_PAGE_PDF', { tabId: state.tabId, notePath: ui.notePath.value.trim() || state.notePath });
     if (result.saved) {
       notice(`Page PDF written → ${result.pdfPath}`);
     } else {
@@ -212,16 +224,15 @@ async function exportPagePdf() {
   } catch (error) {
     notice(`Page PDF failed: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    setBusy(false);
   }
 }
 
 async function exportImage() {
-  const button = $('img');
-  button.disabled = true;
+  setBusy(true);
   notice('Capturing the full page…');
   try {
-    const result = await send('EXPORT_IMAGE', { tabId: state.tabId });
+    const result = await send('EXPORT_IMAGE', { tabId: state.tabId, notePath: ui.notePath.value.trim() || state.notePath });
     await downloadDataUrl(result.dataUrl, result.filename || safeName('.png'));
 
     if (result.fallback) {
@@ -237,16 +248,15 @@ async function exportImage() {
   } catch (error) {
     notice(`Screenshot failed: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    setBusy(false);
   }
 }
 
 async function exportHtml() {
-  const button = $('html');
-  button.disabled = true;
+  setBusy(true);
   notice('Building HTML archive…');
   try {
-    const result = await send('EXPORT_HTML', { tabId: state.tabId });
+    const result = await send('EXPORT_HTML', { tabId: state.tabId, markdown: ui.markdown.value, notePath: ui.notePath.value.trim() || state.notePath });
     if (result.saved) {
       notice(`HTML archive written → ${result.htmlPath}`);
     } else {
@@ -264,7 +274,7 @@ async function exportHtml() {
   } catch (error) {
     notice(`HTML failed: ${error.message}`, true);
   } finally {
-    button.disabled = false;
+    setBusy(false);
   }
 }
 

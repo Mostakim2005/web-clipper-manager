@@ -2,11 +2,11 @@
  * Pure functions, no DOM, no chrome APIs. Safe to unit test in Node.
  */
 
-const YAML_RESERVED = /^(true|false|null|yes|no|on|off|~)$/i;
+const YAML_RESERVED = /^(true|false|null|yes|no|on|off|~|[+-]?(\.inf|inf|infinity|\.nan|nan))$/i;
 const YAML_SAFE = /^[A-Za-z0-9_][A-Za-z0-9_./@+-]*$/;
-const YAML_NUMBERISH = /^-?\d+(\.\d+)?$/;
-const ILLEGAL_FILENAME = /[<>:"/\\|?*\u0000-\u001f]/g;
-const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const YAML_NUMBERISH = /^([+-]?\d+(\.\d+)?(e[+-]?\d+)?|0x[0-9a-f]+|0o[0-7]+)$/i;
+const ILLEGAL_FILENAME = /[<>:"/\\|?*#^\[\]\u0000-\u001f]/g;
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
 
 export function yamlScalar(value) {
   if (value === null || value === undefined) return null;
@@ -64,8 +64,20 @@ export function sanitizeFilename(name, maxLength = 90) {
 
   if (!out) out = 'Untitled';
   if (WINDOWS_RESERVED.test(out)) out = `${out} note`;
-  if (out.length > maxLength) out = out.slice(0, maxLength).trim();
-  return out;
+  if (out.length > maxLength) {
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+      const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+      let acc = '';
+      for (const { segment } of seg.segment(out)) {
+        if (acc.length + segment.length > maxLength) break;
+        acc += segment;
+      }
+      out = acc.trim();
+    } else {
+      out = out.slice(0, maxLength).trim();
+    }
+  }
+  return out || 'Untitled';
 }
 
 export function formatDateTokens(clip) {

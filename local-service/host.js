@@ -220,11 +220,17 @@ async function opSave(message) {
     // Never silently destroy a note that was edited by hand after clipping.
     if (existing && !message.overwrite) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backup = path.join(noteDir, `${path.basename(notePath, '.md')} (omni backup ${stamp}).md`);
+      let backup = path.join(noteDir, `${path.basename(notePath, '.md')} (omni backup ${stamp}).md`);
+      if (fs.existsSync(backup)) {
+        const suffix = crypto.randomBytes(2).toString('hex');
+        backup = path.join(noteDir, `${path.basename(notePath, '.md')} (omni backup ${stamp}-${suffix}).md`);
+      }
       fs.writeFileSync(backup, existing, 'utf8');
       warnings.push(`existing note backed up to ${path.basename(backup)}`);
     }
-    fs.writeFileSync(notePath, message.content, 'utf8');
+    const tmpNote = path.join(noteDir, `.omni-tmp-${crypto.randomUUID()}.md`);
+    fs.writeFileSync(tmpNote, message.content, 'utf8');
+    fs.renameSync(tmpNote, notePath);
   }
 
   return { notePath, assetsWritten, warnings, overwritten: Boolean(existing) };
@@ -233,10 +239,26 @@ async function opSave(message) {
 function findChrome() {
   const candidates = [
     process.env.CHROME_PATH,
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    ...(process.platform === 'win32'
+      ? [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        ]
+      : process.platform === 'darwin'
+      ? [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+          '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ]
+      : [
+          '/usr/bin/google-chrome',
+          '/usr/bin/google-chrome-stable',
+          '/usr/bin/chromium',
+          '/usr/bin/chromium-browser',
+          '/usr/bin/microsoft-edge',
+        ]),
   ].filter(Boolean);
   return candidates.find((candidate) => fs.existsSync(candidate)) || '';
 }

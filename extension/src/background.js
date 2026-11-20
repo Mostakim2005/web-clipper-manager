@@ -53,13 +53,17 @@ async function serviceCall(message, timeoutMs = 90_000) {
   }
 }
 
+const HOST_CACHE_OK_TTL_MS = 10_000;
+const HOST_CACHE_FAIL_TTL_MS = 2_000;
+
 async function hostStatus(force = false) {
-  if (!force && hostCache) return hostCache;
+  const now = Date.now();
+  if (!force && hostCache && now < hostCache.expiresAt) return hostCache;
   try {
     const response = await serviceCall({ op: 'ping' }, 4000);
-    hostCache = { ok: true, reason: '', version: response.version };
+    hostCache = { ok: true, reason: '', version: response.version, expiresAt: now + HOST_CACHE_OK_TTL_MS };
   } catch (error) {
-    hostCache = { ok: false, reason: error.message };
+    hostCache = { ok: false, reason: error.message, expiresAt: now + HOST_CACHE_FAIL_TTL_MS };
   }
   return hostCache;
 }
@@ -128,6 +132,33 @@ async function fetchJson(url, headers) {
 
 const buildCache = new Map();
 
+async function setCachedBuild(tabId, built) {
+  buildCache.set(tabId, built);
+  if (chrome.storage?.session) {
+    await chrome.storage.session.set({ [`build:${tabId}`]: built }).catch(() => {});
+  }
+}
+
+async function getCachedBuild(tabId, expectedUrl) {
+  let built = buildCache.get(tabId);
+  if (!built && chrome.storage?.session) {
+    const stored = await chrome.storage.session.get(`build:${tabId}`).catch(() => ({}));
+    built = stored[`build:${tabId}`];
+    if (built) buildCache.set(tabId, built);
+  }
+  if (built && expectedUrl && built.clip?.url && built.clip.url !== expectedUrl) {
+    return null;
+  }
+  return built || null;
+}
+
+if (chrome.tabs?.onRemoved) {
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    buildCache.delete(tabId);
+    chrome.storage?.session?.remove(`build:${tabId}`).catch(() => {});
+  });
+}
+
 function joinRel(...parts) {
   return parts
     .filter(Boolean)
@@ -183,7 +214,7 @@ async function buildNote(tab, options = {}) {
     settings,
   };
 
-  buildCache.set(tab.id, built);
+  await setCachedBuild(tab.id, built);
   return built;
 }
 
@@ -209,17 +240,33 @@ const MAX_PAGE_HEIGHT = 16_000;
  * debugger is the only way to screenshot past the viewport and to print the
  * live page to PDF instead of re-rendering Markdown.
  */
+const debuggerLocks = new Map();
+
 async function withDebugger(tabId, fn) {
+  const prev = debuggerLocks.get(tabId) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
+  });
+  const chained = prev.then(() => current);
+  debuggerLocks.set(tabId, chained);
+
+  await prev;
   const target = { tabId };
   try {
-    await chrome.debugger.attach(target, '1.3');
-  } catch (error) {
-    throw new Error(`Full-page capture could not attach the debugger: ${error.message}`);
-  }
-  try {
-    return await fn(target);
+    try {
+      await chrome.debugger.attach(target, '1.3');
+    } catch (error) {
+      throw new Error(`Full-page capture could not attach the debugger: ${error.message}`);
+    }
+    try {
+      return await fn(target);
+    } finally {
+      await chrome.debugger.detach(target).catch(() => {});
+    }
   } finally {
-    await chrome.debugger.detach(target).catch(() => {});
+    release();
+    if (debuggerLocks.get(tabId) === chained) debuggerLocks.delete(tabId);
   }
 }
 
@@ -471,14 +518,16 @@ async function handle(message) {
     }
 
     case 'EXPORT_IMAGE': {
-      const { tabId } = message.payload || {};
+      const { tabId, notePath: overridePath } = message.payload || {};
       const settings = await getSettings();
-      const id =
-        tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id;
+      const tab = tabId
+        ? await chrome.tabs.get(tabId)
+        : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+      const id = tab?.id;
       if (!id) throw new Error('No active tab');
       const format = settings.imageFormat === 'jpeg' ? 'jpeg' : 'png';
-      const built = buildCache.get(id);
-      const filename = ((built && built.notePath) || 'Clippings/clip.md')
+      const built = await getCachedBuild(id, tab.url);
+      const filename = (overridePath || (built && built.notePath) || 'Clippings/clip.md')
         .split('/')
         .pop()
         .replace(/\.md$/i, `.${format === 'jpeg' ? 'jpg' : 'png'}`);
@@ -496,13 +545,15 @@ async function handle(message) {
     }
 
     case 'EXPORT_PAGE_PDF': {
-      const { tabId } = message.payload || {};
+      const { tabId, notePath: overridePath } = message.payload || {};
       const settings = await getSettings();
-      const id =
-        tabId || (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id;
+      const tab = tabId
+        ? await chrome.tabs.get(tabId)
+        : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+      const id = tab?.id;
       if (!id) throw new Error('No active tab');
-      const built = buildCache.get(id);
-      const base = ((built && built.notePath) || 'Clippings/clip.md').replace(/\.md$/i, '');
+      const built = await getCachedBuild(id, tab.url);
+      const base = (overridePath || (built && built.notePath) || 'Clippings/clip.md').replace(/\.md$/i, '');
       const filename = `${base.split('/').pop()}.pdf`;
 
       const { base64 } = await printPagePdf(id);
@@ -523,16 +574,18 @@ async function handle(message) {
     }
 
     case 'EXPORT_HTML': {
-      const { tabId } = message.payload || {};
+      const { tabId, markdown: editedMarkdown, notePath: overridePath } = message.payload || {};
       const settings = await getSettings();
       const tab = tabId
         ? await chrome.tabs.get(tabId)
         : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
       if (!tab) throw new Error('No active tab');
 
-      const built = buildCache.get(tab.id) || (await buildNote(tab, {}));
+      const cached = (await getCachedBuild(tab.id, tab.url)) || (await buildNote(tab, {}));
+      const isEdited = typeof editedMarkdown === 'string' && editedMarkdown !== cached.markdown;
+      const built = isEdited ? { ...cached, markdown: editedMarkdown, archiveHtml: '' } : cached;
       const html = renderArchiveHtml(built);
-      const outPath = built.notePath.replace(/\.md$/i, '.html');
+      const outPath = (overridePath || built.notePath).replace(/\.md$/i, '.html');
       const filename = outPath.split('/').pop();
 
       if (settings.vaultPath && settings.preferNativeHost && (await hostStatus()).ok) {
@@ -613,15 +666,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     try {
       const built = await buildNote(tab, {});
       const result = await persist(built.notePath, built.markdown, built.assets, built.assetDir);
-      chrome.action.setBadgeBackgroundColor({ color: '#2e7d32' });
-      chrome.action.setBadgeText({ text: '✓' });
-      setTimeout(() => chrome.action.setBadgeText({ text: '' }), 4000);
-      console.info('[Omni Clipper] saved', result.notePath || built.notePath);
+      chrome.action.setBadgeBackgroundColor({ color: '#2e7d32', tabId: tab.id });
+      chrome.action.setBadgeText({ text: '✓', tabId: tab.id });
+      setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 4000);
+      console.info('[Web Clipper Manager] saved', result.notePath || built.notePath);
     } catch (error) {
-      chrome.action.setBadgeBackgroundColor({ color: '#c62828' });
-      chrome.action.setBadgeText({ text: '!' });
-      setTimeout(() => chrome.action.setBadgeText({ text: '' }), 6000);
-      console.error('[Omni Clipper]', error);
+      chrome.action.setBadgeBackgroundColor({ color: '#c62828', tabId: tab.id });
+      chrome.action.setBadgeText({ text: '!', tabId: tab.id });
+      setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 6000);
+      console.error('[Web Clipper Manager]', error);
     }
   })();
 });
