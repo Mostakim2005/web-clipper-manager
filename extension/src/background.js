@@ -413,7 +413,7 @@ function renderArchiveHtml(built) {
   .omni-head h1 { margin: 0 0 6px; }
   .omni-head p { margin: 0; color: #5a6472; font-size: 10pt; }
   .omni-head a { color: #1a4f8a; }
-  .omni-foot { margin-top: 40px; padding-top: 14px; border-top: 1px solid #e2e5ea; color: #8b94a3; font-size: 9pt; }
+  .omni-foot { margin-top: 40px; padding-top: 14px; border-top: 1px solid #e2e5ea; color: #5a6472; font-size: 9pt; }
 </style>
 </head>
 <body>

@@ -102,6 +102,23 @@ async function refreshHostStatus() {
   }
 }
 
+function syncFieldStates() {
+  const sameAsNote = $('attachmentMode').value === 'sameAsNote';
+  $('attachmentFolder').disabled = sameAsNote;
+  $('browseAttachments').disabled = sameAsNote;
+  const attHint = $('attachmentFolderHint');
+  if (attHint) attHint.textContent = sameAsNote ? 'Not used when attachments are placed next to the note.' : '';
+
+  const isMarkdown = $('embedStyle').value === 'markdown';
+  $('embedWidth').disabled = isMarkdown;
+  const widthHint = $('embedWidthHint');
+  if (widthHint) widthHint.textContent = isMarkdown ? 'Applies to Obsidian wikilinks only.' : '';
+}
+
+function markDirty() {
+  status('Unsaved changes.', true);
+}
+
 async function load() {
   const settings = await getSettings();
   TEXT_FIELDS.forEach((field) => {
@@ -116,6 +133,7 @@ async function load() {
   TOGGLES.forEach((field) => {
     $(field).checked = Boolean(settings[field]);
   });
+  syncFieldStates();
   $('extId').textContent = chrome.runtime.id;
   refreshHostStatus();
 }
@@ -189,5 +207,15 @@ $('testBtn').addEventListener('click', testWrite);
 $('browseVault').addEventListener('click', () => browse('vaultPath', 'vault'));
 $('browseNotes').addEventListener('click', () => browse('notesFolder', 'notes'));
 $('browseAttachments').addEventListener('click', () => browse('attachmentFolder', 'attachments'));
+$('attachmentMode').addEventListener('change', () => {
+  syncFieldStates();
+  markDirty();
+});
+$('embedStyle').addEventListener('change', () => {
+  syncFieldStates();
+  markDirty();
+});
+[...TEXT_FIELDS, ...NUMBER_FIELDS].forEach((field) => $(field).addEventListener('input', markDirty));
+['imageFormat', ...TOGGLES].forEach((field) => $(field).addEventListener('change', markDirty));
 
 load();

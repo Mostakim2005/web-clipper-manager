@@ -6,9 +6,9 @@
     <link rel="stylesheet" href="popup.css" />
     <style>
       body {
-        width: auto;
+        width: 100%;
         max-height: none;
-        min-width: 660px;
+        min-width: 320px;
         padding: 0;
       }
       main {
@@ -41,7 +41,7 @@
       select {
         width: 100%;
         background: var(--panel);
-        border: 1px solid var(--line);
+        border: 1px solid var(--border-control);
         color: var(--text);
         border-radius: 7px;
         padding: 8px 10px;
@@ -67,6 +67,16 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 14px;
+      }
+      @media (max-width: 600px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+      }
+      input:disabled,
+      select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
       .check {
         display: flex;
@@ -134,6 +144,7 @@
             <input id="attachmentFolder" type="text" placeholder="_assets" />
             <button id="browseAttachments" class="ghost" type="button">Browse…</button>
           </div>
+          <div id="attachmentFolderHint" class="inline-hint"></div>
         </label>
       </div>
 
@@ -163,6 +174,7 @@
         <label>
           <span>Default image width (0 = original)</span>
           <input id="embedWidth" type="number" min="0" max="4000" step="10" placeholder="0" />
+          <div id="embedWidthHint" class="inline-hint"></div>
         </label>
       </div>
 
