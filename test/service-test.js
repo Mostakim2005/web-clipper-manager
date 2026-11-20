@@ -166,6 +166,38 @@ async function rpc(payload) {
       assert(fs.existsSync(pdfFile) && fs.readFileSync(pdfFile).equals(pdfBytes), pdfFile)
     );
 
+    // Security: reject symlink escape outside the vault.
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-outside-'));
+    const linkPath = path.join(vault, 'escape-link');
+    try {
+      fs.symlinkSync(outsideDir, linkPath, 'dir');
+      const symRefused = await rpc({
+        op: 'save',
+        vault,
+        notePath: 'escape-link/pwned.md',
+        content: 'nope',
+        assets: [],
+      });
+      check('refuses symlink escape outside vault', () => assert(!symRefused.ok, 'symlink escape allowed'));
+      check('symlink escape wrote nothing outside vault', () =>
+        assert(!fs.existsSync(path.join(outsideDir, 'pwned.md')))
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+
+    // Security: reject unpinned browser extension origins.
+    const badOriginRes = await fetch(`${BASE}/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      body: JSON.stringify({ op: 'ping' }),
+    });
+    check('rejects unpinned extension origins with 403', () => assert(badOriginRes.status === 403, String(badOriginRes.status)));
+
+    // Security: opWriteFile removed.
+    const wf = await rpc({ op: 'writeFile', vault, path: 'a.md', content: 'x' });
+    check('rejects removed writeFile op', () => assert(!wf.ok && /Unknown op/.test(wf.error), JSON.stringify(wf)));
+
     const unknown = await rpc({ op: 'nonsense' });
     check('rejects unknown ops', () => assert(!unknown.ok && /Unknown op/.test(unknown.error), JSON.stringify(unknown)));
   } finally {

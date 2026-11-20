@@ -18,21 +18,56 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const http = require('node:http');
+const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 const VERSION = '0.3.0';
 const PORT = Number(process.env.OMNI_PORT || 8787);
+const PINNED_EXT_ID = 'deolmeeiaonpcokalgopkcihblojihlh';
+const ALLOWED_ORIGINS = new Set(
+  (process.env.OMNI_ALLOWED_ORIGINS || `chrome-extension://${PINNED_EXT_ID}`)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+const SERVICE_TOKEN = process.env.OMNI_TOKEN || '';
+const ALLOWED_VAULT = process.env.OMNI_ALLOWED_VAULT ? path.resolve(process.env.OMNI_ALLOWED_VAULT) : '';
+const MAX_BODY_BYTES = 50 * 1024 * 1024;
+const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 /* ------------------------------------------------------------------- shared */
 
+function resolveRealWithMissingTail(target) {
+  const missing = [];
+  let cur = path.resolve(target);
+  while (!fs.existsSync(cur)) {
+    const parent = path.dirname(cur);
+    if (parent === cur) break;
+    missing.unshift(path.basename(cur));
+    cur = parent;
+  }
+  const realBase = fs.existsSync(cur) ? fs.realpathSync(cur) : cur;
+  return missing.length ? path.join(realBase, ...missing) : realBase;
+}
+
 function assertInside(root, target) {
-  const relative = path.relative(root, target);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+  const realRoot = fs.realpathSync(root);
+  const resolvedTarget = path.resolve(target);
+  const lexical = path.relative(realRoot, resolvedTarget);
+  if (lexical.startsWith('..') || path.isAbsolute(lexical)) {
     throw new Error('Refusing to write outside the vault');
   }
-  return target;
+  if (fs.existsSync(resolvedTarget) && fs.lstatSync(resolvedTarget).isSymbolicLink()) {
+    throw new Error('Refusing to follow symbolic link inside vault');
+  }
+  const realTarget = resolveRealWithMissingTail(resolvedTarget);
+  const realRel = path.relative(realRoot, realTarget);
+  if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+    throw new Error('Refusing to write outside the vault via symlink');
+  }
+  return resolvedTarget;
 }
 
 function safeJoin(root, sub) {
@@ -46,16 +81,61 @@ function requireVault(vault) {
   if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
     throw new Error(`Vault path does not exist: ${resolved}`);
   }
-  return resolved;
+  const realVault = fs.realpathSync(resolved);
+  if (ALLOWED_VAULT) {
+    const realAllowed = fs.realpathSync(ALLOWED_VAULT);
+    const rel = path.relative(realAllowed, realVault);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new Error('Vault path is outside the allowed vault root');
+    }
+  }
+  return realVault;
+}
+
+function isBlockedHost(hostname) {
+  const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h || h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^0\./.test(h)) return true;
+  if (/^169\.254\./.test(h) || /^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (h === '::1' || h === '::' || /^(fc|fd|fe[89ab])/i.test(h)) return true;
+  return false;
 }
 
 async function download(url, destination) {
-  const response = await fetch(url, {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Invalid asset URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Blocked asset protocol: ${parsed.protocol}`);
+  }
+  if (isBlockedHost(parsed.hostname)) {
+    throw new Error(`Blocked private or loopback host: ${parsed.hostname}`);
+  }
+
+  const response = await fetch(parsed.href, {
     headers: { 'User-Agent': USER_AGENT, Accept: 'image/*,*/*' },
     signal: AbortSignal.timeout(25_000),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const buffer = Buffer.from(await response.arrayBuffer());
+  const finalHost = new URL(response.url || parsed.href).hostname;
+  if (isBlockedHost(finalHost)) {
+    throw new Error(`Blocked redirect to private host: ${finalHost}`);
+  }
+  const contentLen = Number(response.headers.get('content-length') || 0);
+  if (contentLen > MAX_ASSET_BYTES) throw new Error('Asset exceeds 25 MB limit');
+
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of response.body) {
+    total += chunk.length;
+    if (total > MAX_ASSET_BYTES) throw new Error('Asset exceeds 25 MB limit');
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
   if (!buffer.length) throw new Error('empty response');
   fs.writeFileSync(destination, buffer);
   return buffer.length;
@@ -183,7 +263,14 @@ async function opPdf(message) {
   const browser = await puppeteer.launch({ executablePath, headless: 'new' });
   try {
     const page = await browser.newPage();
-    await page.setContent(html || '<h1>Empty</h1>', { waitUntil: 'networkidle0', timeout: 45_000 });
+    await page.setJavaScriptEnabled(false);
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const reqUrl = req.url();
+      if (reqUrl.startsWith('data:') || reqUrl.startsWith('about:')) req.continue();
+      else req.abort();
+    });
+    await page.setContent(html || '<h1>Empty</h1>', { waitUntil: 'load', timeout: 45_000 });
     await page.pdf({
       path: outPath,
       format: 'A4',
@@ -195,14 +282,6 @@ async function opPdf(message) {
   }
 
   return { pdfPath: outPath };
-}
-
-async function opWriteFile(message) {
-  const vault = requireVault(message.vault);
-  const target = safeJoin(vault, message.path);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, message.content, 'utf8');
-  return { path: target };
 }
 
 /** Self-contained HTML archive: download the images, then inline them as data URIs. */
@@ -240,31 +319,33 @@ function opPickFolder(message) {
     throw new Error('The folder picker is Windows-only. Type the path instead.');
   }
 
-  const initial = String(message.initial || '').replace(/'/g, "''");
   const script = [
     'Add-Type -AssemblyName System.Windows.Forms | Out-Null',
     '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
     "$dialog.Description = 'Select the Obsidian vault or folder'",
     '$dialog.ShowNewFolderButton = $true',
-    initial ? `if (Test-Path '${initial}') { $dialog.SelectedPath = '${initial}' }` : '',
+    '$initial = $env:OMNI_INITIAL_DIR',
+    'if ($initial -and (Test-Path -LiteralPath $initial)) { $dialog.SelectedPath = $initial }',
     'if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
     '  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
     '  Write-Output $dialog.SelectedPath',
     '}',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  ].join('\n');
 
-  const scriptPath = path.join(os.tmpdir(), `omni-pick-${Date.now()}.ps1`);
-  // BOM matters: Windows PowerShell 5.1 reads -File as ANSI without it, which
-  // corrupts non-ASCII paths such as "C:\Users\josé\Documents".
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-pick-'));
+  const scriptPath = path.join(tmpDir, `${crypto.randomUUID()}.ps1`);
   fs.writeFileSync(scriptPath, `\ufeff${script}`, 'utf8');
+
+  const cleanup = () => fs.rmSync(tmpDir, { recursive: true, force: true });
 
   return new Promise((resolve, reject) => {
     const child = spawn(
       'powershell.exe',
       ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
-      { windowsHide: true }
+      {
+        windowsHide: true,
+        env: { ...process.env, OMNI_INITIAL_DIR: String(message.initial || '') },
+      }
     );
 
     let stdout = '';
@@ -273,12 +354,12 @@ function opPickFolder(message) {
     child.stderr.on('data', (chunk) => (stderr += chunk.toString()));
 
     child.on('error', (error) => {
-      fs.rmSync(scriptPath, { force: true });
+      cleanup();
       reject(error);
     });
 
     child.on('close', (code) => {
-      fs.rmSync(scriptPath, { force: true });
+      cleanup();
       if (code !== 0 && !stdout.trim()) {
         reject(new Error(stderr.trim() || `Folder picker exited with code ${code}`));
         return;
@@ -302,8 +383,6 @@ async function dispatch(message) {
       return opPickFolder(message);
     case 'pdf':
       return opPdf(message);
-    case 'writeFile':
-      return opWriteFile(message);
     default:
       throw new Error(`Unknown op: ${message.op}`);
   }
@@ -314,29 +393,42 @@ async function dispatch(message) {
 function startHttp() {
   const server = http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
-    const allowed =
-      !origin || origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://');
+    const hostHeader = String(req.headers.host || '');
+    const validHost = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i.test(hostHeader);
+    const allowed = !origin || ALLOWED_ORIGINS.has(origin);
 
     const send = (status, payload) => {
       const body = JSON.stringify(payload);
       res.writeHead(status, {
         'Content-Type': 'application/json; charset=utf-8',
         'Access-Control-Allow-Origin': allowed && origin ? origin : 'null',
-        'Access-Control-Allow-Headers': 'content-type',
+        'Access-Control-Allow-Headers': 'content-type, x-omni-token',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
         'Cache-Control': 'no-store',
       });
       res.end(body);
     };
 
+    if (!validHost) return send(403, { ok: false, error: 'Invalid Host header' });
     if (req.method === 'OPTIONS') return send(204, {});
     if (!allowed) return send(403, { ok: false, error: 'Origin not allowed' });
 
     if (req.method === 'GET' && req.url === '/health') return send(200, { ok: true, ...(await opPing()) });
+    if (SERVICE_TOKEN && req.headers['x-omni-token'] !== SERVICE_TOKEN) {
+      return send(401, { ok: false, error: 'Unauthorized: invalid or missing X-Omni-Token' });
+    }
     if (req.method !== 'POST') return send(405, { ok: false, error: 'POST only' });
 
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    let bodyBytes = 0;
+    for await (const chunk of req) {
+      bodyBytes += chunk.length;
+      if (bodyBytes > MAX_BODY_BYTES) {
+        req.resume();
+        return send(413, { ok: false, error: 'Request payload exceeds 50 MB limit' });
+      }
+      chunks.push(chunk);
+    }
 
     let message;
     try {

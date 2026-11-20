@@ -20,6 +20,7 @@ export const DEFAULTS = {
 
   // Service
   serviceUrl: 'http://127.0.0.1:8787',
+  serviceToken: '',
   preferNativeHost: true,
 };
 

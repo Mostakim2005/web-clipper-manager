@@ -32,9 +32,11 @@ async function serviceCall(message, timeoutMs = 90_000) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (settings.serviceToken) headers['X-Omni-Token'] = settings.serviceToken;
     const response = await fetch(`${base}/rpc`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(message),
       signal: controller.signal,
     });
@@ -87,7 +89,23 @@ function sendToTab(tabId, message) {
   });
 }
 
+const FETCH_JSON_ALLOWED_HOSTS = new Set([
+  'api.fxtwitter.com',
+  'www.reddit.com',
+  'old.reddit.com',
+  'reddit.com',
+]);
+
 async function fetchJson(url, headers) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Invalid metadata URL');
+  }
+  if (parsed.protocol !== 'https:' || !FETCH_JSON_ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) {
+    throw new Error(`Blocked metadata host: ${parsed.hostname}`);
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
@@ -291,11 +309,27 @@ const PRINT_CSS = `
   ul, ol { margin: 0 0 .8em 1.2em; padding: 0; }
 `;
 
+const ARCHIVE_CSP =
+  "default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline';";
+
+/**
+ * Strip executable markup from untrusted HTML before embedding into PDF or
+ * standalone HTML archives. Pair with vendored DOMPurify if rich SVG/MathML
+ * allowlisting is later required.
+ */
+function sanitizeHtml(html) {
+  return String(html || '')
+    .replace(/<(script|iframe|object|embed|form|base|meta|link|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<(script|iframe|object|embed|form|base|meta|link)\b[^>]*\/?>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src|action|formaction)\s*=\s*(["'])\s*(?:javascript|vbscript|data\s*:\s*text\/html)[^"']*\2/gi, '$1=$2#$2');
+}
+
 function renderPdfHtml(markdown) {
   const body = normalizeImageLinks(markdown);
 
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${PRINT_CSS}</style></head><body><article>${marked.parse(
-    body
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${ARCHIVE_CSP}"><style>${PRINT_CSS}</style></head><body><article>${sanitizeHtml(
+    marked.parse(body)
   )}</article></body></html>`;
 }
 
@@ -318,6 +352,7 @@ function renderArchiveHtml(built) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="${ARCHIVE_CSP}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(clip.title || 'Omni clip')}</title>
 <meta name="omni-source" content="${escapeHtml(clip.source || 'article')}">
@@ -342,7 +377,7 @@ function renderArchiveHtml(built) {
       clip.url || ''
     )}</a></p>
   </header>
-  <article>${inner}</article>
+  <article>${sanitizeHtml(inner)}</article>
   <footer class="omni-foot">Captured with Web Clipper Manager on ${escapeHtml(
     (clip.capturedAt || '').slice(0, 10) || 'unknown date'
   )}.</footer>
@@ -541,7 +576,17 @@ async function handle(message) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+const CONTENT_SCRIPT_OPS = new Set(['FETCH_JSON']);
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!sender || sender.id !== chrome.runtime.id) {
+    sendResponse({ ok: false, error: 'Unauthorized sender' });
+    return false;
+  }
+  if (sender.tab && !CONTENT_SCRIPT_OPS.has(message?.type)) {
+    sendResponse({ ok: false, error: `Operation not allowed from content script: ${message?.type}` });
+    return false;
+  }
   Promise.resolve()
     .then(() => handle(message))
     .then((data) => sendResponse({ ok: true, data }))
