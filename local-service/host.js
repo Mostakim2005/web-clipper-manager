@@ -205,6 +205,14 @@ async function opPing() {
   };
 }
 
+async function opExists(message) {
+  const vault = requireVault(message.vault);
+  const notePath = safeJoin(vault, message.notePath);
+  if (!fs.existsSync(notePath)) return { exists: false };
+  const stat = fs.statSync(notePath);
+  return { exists: true, mtime: stat.mtime.toISOString(), size: stat.size };
+}
+
 async function opSave(message) {
   const vault = requireVault(message.vault);
   const notePath = safeJoin(vault, message.notePath);
@@ -336,9 +344,40 @@ async function opSaveBinary(message) {
  * Native folder picker. A service worker cannot open one, so the service shells
  * out to PowerShell with -STA (WinForms requires a single-threaded apartment).
  */
+function runPickerCommand(cmd, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, opts);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => (stdout += chunk.toString()));
+    child.stderr.on('data', (chunk) => (stderr += chunk.toString()));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0 && !stdout.trim()) {
+        if (code === 1) return resolve({ path: '' });
+        return reject(new Error(stderr.trim() || `Folder picker exited with code ${code}`));
+      }
+      resolve({ path: stdout.trim() });
+    });
+  });
+}
+
 function opPickFolder(message) {
+  if (process.platform === 'darwin') {
+    const script = 'POSIX path of (choose folder with prompt "Select the Obsidian vault or folder")';
+    return runPickerCommand('osascript', ['-e', script]);
+  }
+  if (process.platform === 'linux') {
+    return runPickerCommand('zenity', [
+      '--file-selection',
+      '--directory',
+      '--title=Select the Obsidian vault or folder',
+    ]).catch(() =>
+      runPickerCommand('kdialog', ['--getexistingdirectory', String(message.initial || os.homedir())])
+    );
+  }
   if (process.platform !== 'win32') {
-    throw new Error('The folder picker is Windows-only. Type the path instead.');
+    throw new Error('Folder picker is unsupported on this platform. Type the path instead.');
   }
 
   const script = [
@@ -395,6 +434,8 @@ async function dispatch(message) {
   switch (message.op) {
     case 'ping':
       return opPing();
+    case 'exists':
+      return opExists(message);
     case 'save':
       return opSave(message);
     case 'saveHtml':

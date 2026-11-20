@@ -202,6 +202,16 @@ async function buildNote(tab, options = {}) {
     return image ? `asset://${assetName(image.url)}` : '';
   });
 
+  let existingNote = null;
+  if (useLocalAssets) {
+    try {
+      const check = await serviceCall({ op: 'exists', vault: settings.vaultPath, notePath }, 4000);
+      if (check.exists) existingNote = { mtime: check.mtime, size: check.size };
+    } catch {
+      /* non-fatal */
+    }
+  }
+
   const built = {
     clip,
     markdown,
@@ -211,6 +221,7 @@ async function buildNote(tab, options = {}) {
     assets,
     hasHost: useLocalAssets,
     hostReason: host.reason || '',
+    existingNote,
     settings,
   };
 
@@ -218,7 +229,7 @@ async function buildNote(tab, options = {}) {
   return built;
 }
 
-async function persist(notePath, markdown, assets, assetFolder) {
+async function persist(notePath, markdown, assets, assetFolder, overwrite = false) {
   const settings = await getSettings();
   if (!settings.vaultPath) throw new Error('Set your vault path in Options before saving.');
   return serviceCall({
@@ -227,13 +238,16 @@ async function persist(notePath, markdown, assets, assetFolder) {
     notePath,
     content: markdown,
     assetFolder: assetFolder || attachmentDir(settings, notePath),
+    overwrite: Boolean(overwrite),
     assets: (assets || []).map((asset) => ({ name: asset.name, url: asset.url })),
   });
 }
 
 /* --------------------------------------------------------------- full page */
 
-const MAX_PAGE_HEIGHT = 16_000;
+const MAX_SINGLE_SHOT_HEIGHT = 16_000;
+const MAX_STITCHED_HEIGHT = 48_000;
+const TILE_HEIGHT = 8_000;
 
 /**
  * Attach the DevTools protocol for one operation, then always detach. The
@@ -278,22 +292,45 @@ async function captureFullPage(tabId, format = 'png', quality = 90) {
 
     const width = Math.max(1, Math.ceil(size.width));
     const fullHeight = Math.max(1, Math.ceil(size.height));
-    const height = Math.min(fullHeight, MAX_PAGE_HEIGHT);
 
-    const shot = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', {
-      format,
-      quality: format === 'jpeg' ? quality : undefined,
-      captureBeyondViewport: true,
-      fromSurface: true,
-      clip: { x: 0, y: 0, width, height, scale: 1 },
-    });
+    if (fullHeight <= MAX_SINGLE_SHOT_HEIGHT) {
+      const shot = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', {
+        format,
+        quality: format === 'jpeg' ? quality : undefined,
+        captureBeyondViewport: true,
+        fromSurface: true,
+        clip: { x: 0, y: 0, width, height: fullHeight, scale: 1 },
+      });
+      return {
+        dataUrl: `data:image/${format};base64,${shot.data}`,
+        width,
+        height: fullHeight,
+        fullHeight,
+        truncated: false,
+        format,
+      };
+    }
+
+    const cappedHeight = Math.min(fullHeight, MAX_STITCHED_HEIGHT);
+    const tiles = [];
+    for (let y = 0; y < cappedHeight; y += TILE_HEIGHT) {
+      const h = Math.min(TILE_HEIGHT, cappedHeight - y);
+      const shot = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', {
+        format,
+        quality: format === 'jpeg' ? quality : undefined,
+        captureBeyondViewport: true,
+        fromSurface: true,
+        clip: { x: 0, y, width, height: h, scale: 1 },
+      });
+      tiles.push({ y, height: h, dataUrl: `data:image/${format};base64,${shot.data}` });
+    }
 
     return {
-      dataUrl: `data:image/${format};base64,${shot.data}`,
+      tiles,
       width,
-      height,
+      height: cappedHeight,
       fullHeight,
-      truncated: fullHeight > height,
+      truncated: fullHeight > cappedHeight,
       format,
     };
   });
@@ -459,6 +496,7 @@ async function handle(message) {
         hasHost: built.hasHost,
         hostReason: built.hostReason,
         assets: built.assets,
+        existingNote: built.existingNote,
         clip: {
           source: built.clip.source,
           kind: built.clip.kind,
@@ -473,9 +511,9 @@ async function handle(message) {
     }
 
     case 'SAVE': {
-      const { notePath, markdown, assets, assetFolder } = message.payload || {};
+      const { notePath, markdown, assets, assetFolder, overwrite } = message.payload || {};
       if (!notePath || typeof markdown !== 'string') throw new Error('Nothing to save');
-      const result = await persist(notePath, markdown, assets, assetFolder);
+      const result = await persist(notePath, markdown, assets, assetFolder, overwrite);
       return {
         notePath: result.notePath || notePath,
         assetsWritten: result.assetsWritten || 0,
@@ -599,14 +637,33 @@ async function handle(message) {
         }
       }
 
-      // No service means no image downloads, so point the archive back at the
-      // original URLs instead of leaving unresolvable asset:// references.
+      // Service offline: inline images directly from the background worker so the
+      // downloaded HTML archive remains self-contained.
       const byName = new Map((built.assets || []).map((asset) => [asset.name, asset.url]));
-      const remoteHtml = html.replace(/asset:\/\/([^"'()\s<>]+)/g, (match, encoded) => {
-        return byName.get(decodeURIComponent(encoded)) || match;
+      const inlined = new Map();
+      let failedInline = 0;
+      for (const [name, url] of byName.entries()) {
+        try {
+          const resp = await fetch(url, { credentials: 'omit' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const buf = new Uint8Array(await resp.arrayBuffer());
+          let bin = '';
+          for (let i = 0; i < buf.length; i += 8192) {
+            bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+          }
+          const mime = resp.headers.get('content-type') || 'image/jpeg';
+          inlined.set(name, `data:${mime.split(';')[0]};base64,${btoa(bin)}`);
+        } catch {
+          failedInline += 1;
+          inlined.set(name, url);
+        }
+      }
+      const portableHtml = html.replace(/asset:\/\/([^"'()\s<>]+)/g, (match, encoded) => {
+        const key = decodeURIComponent(encoded);
+        return inlined.get(key) || byName.get(key) || match;
       });
 
-      return { html: remoteHtml, filename, saved: false, remoteImages: true };
+      return { html: portableHtml, filename, saved: false, remoteImages: failedInline > 0 };
     }
 
     default:
@@ -634,32 +691,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /* -------------------------------------------------------------- context menu */
 
+async function runSilentClip(tab, options = {}) {
+  try {
+    const built = await buildNote(tab, options);
+    const result = await persist(built.notePath, built.markdown, built.assets, built.assetDir);
+    chrome.action.setBadgeBackgroundColor({ color: '#2e7d32', tabId: tab.id });
+    chrome.action.setBadgeText({ text: '✓', tabId: tab.id });
+    setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 4000);
+    console.info('[Web Clipper Manager] saved', result.notePath || built.notePath);
+  } catch (error) {
+    chrome.action.setBadgeBackgroundColor({ color: '#c62828', tabId: tab.id });
+    chrome.action.setBadgeText({ text: '!', tabId: tab.id });
+    setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 6000);
+    console.error('[Web Clipper Manager]', error);
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'omni-clip',
-      title: 'Clip with Web Clipper Manager',
+      title: 'Clip page with Web Clipper Manager',
       contexts: ['page'],
+    });
+    chrome.contextMenus.create({
+      id: 'omni-clip-selection',
+      title: 'Clip selection with Web Clipper Manager',
+      contexts: ['selection'],
     });
   });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== 'omni-clip' || !tab) return;
-
-  (async () => {
-    try {
-      const built = await buildNote(tab, {});
-      const result = await persist(built.notePath, built.markdown, built.assets, built.assetDir);
-      chrome.action.setBadgeBackgroundColor({ color: '#2e7d32', tabId: tab.id });
-      chrome.action.setBadgeText({ text: '✓', tabId: tab.id });
-      setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 4000);
-      console.info('[Web Clipper Manager] saved', result.notePath || built.notePath);
-    } catch (error) {
-      chrome.action.setBadgeBackgroundColor({ color: '#c62828', tabId: tab.id });
-      chrome.action.setBadgeText({ text: '!', tabId: tab.id });
-      setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {}), 6000);
-      console.error('[Web Clipper Manager]', error);
-    }
-  })();
+  if (!tab) return;
+  if (info.menuItemId === 'omni-clip') runSilentClip(tab, {});
+  else if (info.menuItemId === 'omni-clip-selection') runSilentClip(tab, { mode: 'selection' });
 });
+
+if (chrome.commands?.onCommand) {
+  chrome.commands.onCommand.addListener(async (command) => {
+    if (command !== 'quick-clip') return;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) runSilentClip(tab, {});
+  });
+}

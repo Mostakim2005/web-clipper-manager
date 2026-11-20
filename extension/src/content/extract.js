@@ -533,7 +533,35 @@
 
     if (!clip.canonicalUrl) delete clip.canonicalUrl;
 
-    if (requested === 'facebook') await extractFacebook(clip);
+    if (options.mode === 'selection') {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        throw new Error('No text is selected on this page.');
+      }
+      const dimMap = OC.collectImageDimensions(document);
+      const holder = document.createElement('div');
+      for (let i = 0; i < sel.rangeCount; i += 1) {
+        const range = sel.getRangeAt(i);
+        const frag = range.cloneContents();
+        const ancestor = range.commonAncestorContainer;
+        const pre = ancestor.nodeType === 1 ? ancestor.closest('pre') : ancestor.parentElement?.closest('pre');
+        if (pre && !frag.querySelector('pre')) {
+          const wrapPre = document.createElement('pre');
+          const wrapCode = document.createElement('code');
+          wrapCode.appendChild(frag);
+          wrapPre.appendChild(wrapCode);
+          holder.appendChild(wrapPre);
+        } else {
+          holder.appendChild(frag);
+        }
+      }
+      OC.absolutize(holder);
+      OC.stashImages(holder, clip.images, 'selection', dimMap);
+      clip.kind = 'selection';
+      clip.title = (document.title || '').trim();
+      clip.html = holder.innerHTML;
+      clip.body = OC.htmlToMarkdown(holder);
+    } else if (requested === 'facebook') await extractFacebook(clip);
     else if (requested === 'twitter') await extractTwitter(clip, options);
     else if (requested === 'reddit') await extractReddit(clip);
     else extractArticle(clip);

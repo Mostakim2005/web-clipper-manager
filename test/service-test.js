@@ -91,6 +91,11 @@ async function rpc(payload) {
     const noteFile = path.join(vault, 'Clippings', '2026-11-02 Test note.md');
     check('file exists on disk', () => assert(fs.existsSync(noteFile), noteFile));
     check('file content matches', () => assert(fs.readFileSync(noteFile, 'utf8') === note));
+    const existsYes = await rpc({ op: 'exists', vault, notePath: 'Clippings/2026-11-02 Test note.md' });
+    const existsNo = await rpc({ op: 'exists', vault, notePath: 'Clippings/nonexistent.md' });
+    check('opExists reports existing and missing notes accurately', () =>
+      assert(existsYes.ok && existsYes.exists === true && existsNo.ok && existsNo.exists === false)
+    );
     check('creates the assets folder', () =>
       assert(fs.existsSync(path.join(vault, '_assets')), 'assets dir missing')
     );

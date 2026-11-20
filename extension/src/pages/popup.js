@@ -1,5 +1,6 @@
 import { send } from '../lib/rpc.js';
 import { getSettings, setSettings } from '../lib/settings.js';
+import { marked } from '../vendor/marked.esm.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -95,6 +96,7 @@ async function init() {
     const host = await send('HOST_STATUS');
     const usable = Boolean(host?.ok);
     ui.hostHint.classList.toggle('hidden', usable);
+    $('reconnectBtn')?.classList.toggle('hidden', usable);
     if (!usable) {
       ui.hostHint.classList.add('warn');
       ui.hostHint.textContent =
@@ -128,6 +130,18 @@ async function capture() {
     }
     bits.push(`assets → ${state.assetDir || '.'}`);
     ui.stats.textContent = bits.join('  ·  ');
+
+    const dupEl = $('duplicateBanner');
+    if (dupEl) {
+      if (result.existingNote) {
+        const day = (result.existingNote.mtime || '').slice(0, 10) || 'previously';
+        $('duplicateText').textContent = `Note already exists (modified ${day}) — saving will back up the old file.`;
+        dupEl.classList.remove('hidden');
+      } else {
+        dupEl.classList.add('hidden');
+      }
+      if ($('overwriteToggle')) $('overwriteToggle').checked = false;
+    }
 
     if (!state.hasHost) {
       notice('Preview only — local service unavailable, so the note has not been written to your vault.', true);
@@ -179,6 +193,7 @@ async function save() {
       markdown: ui.markdown.value,
       assets: state.assets,
       assetFolder: state.assetDir,
+      overwrite: Boolean($('overwriteToggle')?.checked),
     });
     notice(
       `Saved → ${result.notePath}${result.assetsWritten ? ` · ${result.assetsWritten} image(s) saved` : ''}`
@@ -256,7 +271,23 @@ async function exportImage() {
   notice('Capturing the full page…');
   try {
     const result = await send('EXPORT_IMAGE', { tabId: state.tabId, notePath: ui.notePath.value.trim() || state.notePath });
-    await downloadDataUrl(result.dataUrl, result.filename || safeName('.png'));
+    if (Array.isArray(result.tiles) && result.tiles.length) {
+      const canvas = document.createElement('canvas');
+      canvas.width = result.width;
+      canvas.height = result.height;
+      const ctx = canvas.getContext('2d');
+      for (const tile of result.tiles) {
+        const img = new Image();
+        img.src = tile.dataUrl;
+        await img.decode();
+        ctx.drawImage(img, 0, tile.y);
+      }
+      const mime = result.format === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, 0.92));
+      await downloadBlob(blob, result.filename || safeName(result.format === 'jpeg' ? '.jpg' : '.png'));
+    } else {
+      await downloadDataUrl(result.dataUrl, result.filename || safeName('.png'));
+    }
 
     if (result.fallback) {
       notice(`Viewport screenshot only — full-page capture failed: ${result.reason}`, true);
@@ -312,6 +343,39 @@ $('html').addEventListener('click', exportHtml);
 $('copy').addEventListener('click', copy);
 $('pickFolder').addEventListener('click', pickFolder);
 $('quickSave').addEventListener('change', (e) => setSettings({ quickSave: e.target.checked }));
+function setPreviewMode(rendered) {
+  $('viewRaw').classList.toggle('active', !rendered);
+  $('viewRendered').classList.toggle('active', rendered);
+  ui.markdown.classList.toggle('hidden', rendered);
+  const box = $('renderedPreview');
+  box.classList.toggle('hidden', !rendered);
+  if (rendered) {
+    const byName = new Map((state.assets || []).map((a) => [a.name, a.url]));
+    const body = ui.markdown.value
+      .replace(/^---\n[\s\S]*?\n---\n/, '')
+      .replace(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, (_, name) => `![${name}](${byName.get(name) || name})`);
+    const rawHtml = marked.parse(body);
+    const clean = rawHtml
+      .replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    box.innerHTML = clean;
+  }
+}
+
+$('viewRaw').addEventListener('click', () => setPreviewMode(false));
+$('viewRendered').addEventListener('click', () => setPreviewMode(true));
+$('reconnectBtn').addEventListener('click', () => init());
+$('sidePanelBtn').addEventListener('click', async () => {
+  try {
+    const win = await chrome.windows.getCurrent();
+    if (chrome.sidePanel?.open && win?.id) {
+      await chrome.sidePanel.open({ windowId: win.id });
+      window.close();
+    }
+  } catch (error) {
+    notice(`Side panel unavailable: ${error.message}`, true);
+  }
+});
 $('options').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 init();

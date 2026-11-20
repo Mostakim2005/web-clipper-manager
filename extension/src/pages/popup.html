@@ -12,9 +12,14 @@
         <h1 class="visually-hidden">Web Clipper Manager</h1>
         <span>Web Clipper Manager</span>
       </div>
-      <button id="options" class="icon" type="button" aria-label="Options" title="Options">
-        <span aria-hidden="true">⚙</span>
-      </button>
+      <div class="bar-tools">
+        <button id="sidePanelBtn" class="icon" type="button" aria-label="Open in Side Panel" title="Open in Side Panel">
+          <span aria-hidden="true">◫</span>
+        </button>
+        <button id="options" class="icon" type="button" aria-label="Options" title="Options">
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </div>
     </header>
 
     <section class="meta">
@@ -30,6 +35,7 @@
         Works on articles, Facebook posts, Twitter/X posts and Reddit threads.
       </p>
       <div id="hostHint" class="notice hidden" role="status" aria-live="polite"></div>
+      <button id="reconnectBtn" class="ghost hidden" type="button">Reconnect local service</button>
     </section>
 
     <section id="loading" class="pane hidden" role="status" aria-live="polite">
@@ -64,8 +70,19 @@
         <input id="quickSave" type="checkbox" />
         <span>Quick Save to default folder</span>
       </label>
-      <div class="stats" id="stats"></div>
+      <div class="stats-bar">
+        <div class="stats" id="stats"></div>
+        <div class="view-toggle" role="group" aria-label="Preview mode">
+          <button id="viewRaw" class="ghost active" type="button">Raw</button>
+          <button id="viewRendered" class="ghost" type="button">Preview</button>
+        </div>
+      </div>
+      <div id="duplicateBanner" class="notice warn hidden" role="status" aria-live="polite">
+        <span id="duplicateText"></span>
+        <label class="quick-save-row"><input id="overwriteToggle" type="checkbox" /><span>Overwrite without backup</span></label>
+      </div>
       <textarea id="markdown" spellcheck="false" aria-label="Markdown content"></textarea>
+      <div id="renderedPreview" class="rendered-preview hidden" aria-label="Rendered Markdown preview"></div>
       <div class="actions">
         <button id="save" class="primary" type="button">Save to vault</button>
         <button

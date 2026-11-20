@@ -12,7 +12,8 @@
     "tabs",
     "downloads",
     "debugger",
-    "contextMenus"
+    "contextMenus",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -37,5 +38,22 @@
     "32": "assets/icon32.png",
     "48": "assets/icon48.png",
     "128": "assets/icon128.png"
+  },
+  "side_panel": {
+    "default_path": "src/pages/popup.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+C"
+      },
+      "description": "Open Web Clipper Manager popup"
+    },
+    "quick-clip": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Silently clip and save active page to vault"
+    }
   }
 }

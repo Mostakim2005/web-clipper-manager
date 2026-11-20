@@ -1,5 +1,6 @@
 import { DEFAULTS, getSettings, setSettings } from '../lib/settings.js';
 import { send } from '../lib/rpc.js';
+import { buildNoteFilename, attachmentDir, relativeDir } from '../lib/render.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -103,6 +104,30 @@ function syncFieldStates() {
   $('embedWidth').disabled = isMarkdown;
   const widthHint = $('embedWidthHint');
   if (widthHint) widthHint.textContent = isMarkdown ? 'Applies to Obsidian wikilinks only.' : '';
+
+  const previewEl = $('templatePreview');
+  if (previewEl) {
+    const sample = {
+      title: 'Sample Article Title',
+      source: 'article',
+      capturedAt: new Date().toISOString(),
+      author: { name: 'Author' },
+    };
+    const notesFolder = ($('notesFolder').value.trim() || DEFAULTS.notesFolder).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const file = buildNoteFilename(sample, { filenameTemplate: $('filenameTemplate').value.trim() || DEFAULTS.filenameTemplate });
+    const notePath = notesFolder ? `${notesFolder}/${file}` : file;
+    const attDir = attachmentDir(
+      { attachmentMode: $('attachmentMode').value, attachmentFolder: $('attachmentFolder').value.trim() || '_assets' },
+      notePath
+    );
+    const width = Number($('embedWidth').value) || 0;
+    const embed = isMarkdown
+      ? `![](${relativeDir(notesFolder, attDir)}omni-a1b2c3.jpg)`
+      : width > 0
+      ? `![[omni-a1b2c3.jpg|${width}]]`
+      : '![[omni-a1b2c3.jpg]]';
+    previewEl.textContent = `Preview: ${notePath}  ·  assets: ${attDir || '(vault root)'}  ·  embed: ${embed}`;
+  }
 }
 
 function markDirty() {
@@ -205,7 +230,7 @@ $('embedStyle').addEventListener('change', () => {
   syncFieldStates();
   markDirty();
 });
-[...TEXT_FIELDS, ...NUMBER_FIELDS].forEach((field) => $(field).addEventListener('input', markDirty));
+[...TEXT_FIELDS, ...NUMBER_FIELDS].forEach((field) => $(field).addEventListener('input', () => { syncFieldStates(); markDirty(); }));
 ['imageFormat', ...TOGGLES].forEach((field) => $(field).addEventListener('change', markDirty));
 
 load();
