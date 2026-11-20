@@ -207,10 +207,10 @@ Full versions, with what failed first and a pivot diagram, live in
 - Full-page screenshots are capped at 16,000 px tall; the popup reports when the page was cut.
 - `EXPORT_PAGE_PDF` and `EXPORT_HTML` return multi-MB payloads to the popup when the service is unavailable (browser download). Fine at normal article sizes; very large pages may be slow.
 - `opPickFolder` shells out to `powershell.exe -STA`; Windows only. If PowerShell execution policy blocks it, the service also passes `-ExecutionPolicy Bypass`.
-- The service must be running before saving; there is no autostart entry yet.
+- Autostart on Windows is supported via `tools/install-autostart.cmd`, which adds a silent VBS launcher to the user's Startup directory.
+- Duplicate detection is enabled via `opExists`: the extension checks for existing notes prior to writing and warns the user.
 - Reddit caps at 25 comment branches; deeper ones are reported, not fetched.
 - Facebook comments are not captured; multi-photo galleries are captured as individual images without order guarantees.
-- No dedupe index: re-clipping writes the same note path, and the service backs up the old file.
 - `clip.html` is only populated for articles. Other sources export HTML built from their Markdown.
 - `chrome.tabs.captureVisibleTab` still exists as the viewport fallback (`EXPORT_PNG`).
 - `package-lock.json` still records the old package name `omni-clipper` in its root entry. Harmless; it reconciles on the next `npm install`.
@@ -220,7 +220,7 @@ Full versions, with what failed first and a pivot diagram, live in
 1. **Telegram adapter** — 1.5d. Public channel pages only (`t.me/s/<channel>`), one note per message, no login, no export import.
 2. **Obsidian format update & engagement removal** — update `render.js` to drop engagement callout and wire tests accordingly.
 3. **Quick Save toggle & Vault folder option** — support toggleable Quick Save to the default `Web Clipper Manager` / `Web Clipping` folder vs manual folder selection.
-4. **Selection clip + element picker** — 2d. Both reuse the Turndown path.
+4. **Element picker + element screenshot** — 2d. Reuses the Turndown path and token resolution. (Selection clip is already completed).
 
 Not on the roadmap any more: YouTube, thread engine, Bluesky, Mastodon, Hacker News,
 search, note merging, tags, highlights, AI. See `SCOPE.md` for why.

@@ -172,6 +172,38 @@
   * `extension/src/lib/render.js` -> `renderNote`, `engagementLine`
   * `extension/src/content/extract.js` -> `OC.extract`
 
+### [FEATURE: Selection-Clipping] | Aliases: highlight to clip, selected text, clip selection
+> **1-Line Summary:** Clip selected text directly into Markdown when text is highlighted on the page.
+* **User Intention (Non-Negotiable):** Allow clipping only relevant paragraphs without storing page furniture or unwanted sections.
+* **Visual / UI Behavior:** Automatic detection of page selection; switches extraction mode to selected range.
+* **Code Anchors (Grep Targets):**
+  * `extension/src/content/extract.js` -> `extractSelection`
+  * `extension/src/background.js` -> `CLIP_SELECTION`
+
+### [FEATURE: Keyboard-Shortcuts-And-Quick-Save] | Aliases: hotkeys, shortcuts, fast clip
+> **1-Line Summary:** Trigger clips, quick saves, and side panel directly via keyboard commands without mouse clicks.
+* **User Intention (Non-Negotiable):** Enable frictionless clipping workflow directly from the keyboard.
+* **Visual / UI Behavior:** Registered browser commands with customizable shortcuts in extension settings.
+* **Code Anchors (Grep Targets):**
+  * `extension/manifest.json` -> `commands`
+  * `extension/src/background.js` -> `chrome.commands.onCommand`
+
+### [FEATURE: Side-Panel-And-Live-Preview] | Aliases: side panel, reader view, split view, preview tiling
+> **1-Line Summary:** Persistent side panel and live tiled Markdown preview for interactive reading and editing.
+* **User Intention (Non-Negotiable):** Keep clipping UI open during long reading sessions without popup dismissal on outside clicks.
+* **Visual / UI Behavior:** Side panel pane with responsive options and live preview tiling.
+* **Code Anchors (Grep Targets):**
+  * `extension/manifest.json` -> `side_panel`
+  * `extension/src/pages/popup.html`, `extension/src/pages/popup.js`
+
+### [FEATURE: Duplicate-Note-Detection] | Aliases: opExists, dedupe warning, existing note check
+> **1-Line Summary:** Checks the vault via `opExists` before writing and warns the user if a note already exists.
+* **User Intention (Non-Negotiable):** Prevent accidental overwrites while maintaining backup snapshots.
+* **Visual / UI Behavior:** Visual warning in the UI before saving an existing note.
+* **Code Anchors (Grep Targets):**
+  * `local-service/host.js` -> `opExists`
+  * `extension/src/background.js`, `extension/src/pages/popup.js`
+
 ## 3. Planned Features & App-Merge Wishlist
 
 ### [WISHLIST: Telegram-Channel-Clipping] | Aliases: telegram, t.me, public channel, message id
@@ -179,30 +211,10 @@
 * **User Intention:** One note per message behaviour matching every other source; public channel pages only, no login and no chat export. Multi-message selection may be added optionally in the future, but baseline is 1 note per message.
 * **Target Integration Point:** A new `extractTelegram` adapter behind `OC.detectSource`.
 
-### [WISHLIST: Per-Site-Note-Format-Spec] | Aliases: obsidian format, folder layout, frontmatter schema
-> **1-Line Summary:** Incorporates settled format decisions: single default folder (`Web Clipper Manager` / `Web Clipping`), Quick Save mode, dropped engagement callouts.
-* **User Intention:** The note shape is configured to the owner's decisions. Engagement callouts are removed, saving complexity.
-* **Target Integration Point:** `extension/src/lib/render.js` -> `renderNote`, `buildNoteFilename`, `attachmentDir`.
-
-### [WISHLIST: Selection-Clip] | Aliases: highlight to clip, selected text
-> **1-Line Summary:** Clip only the text the owner has selected on the page instead of the whole capture.
-* **User Intention:** Not every page is worth keeping whole.
-* **Target Integration Point:** `window.getSelection()` range clone into the existing Turndown path in `OC.htmlToMarkdown`.
-
 ### [WISHLIST: Element-Picker-And-Element-Screenshot] | Aliases: click to capture, hover overlay, subtree
 > **1-Line Summary:** Hover to highlight one part of a page, then capture just that part as Markdown or as an image.
 * **User Intention:** For pages where the useful content is one block, not the document.
 * **Target Integration Point:** A content-script overlay feeding `buildNote`; shares the token resolution in `resolveBodyTokens`.
-
-### [WISHLIST: Keyboard-Shortcut] | Aliases: hotkey, accelerator, bind key
-> **1-Line Summary:** Trigger a clip from the keyboard instead of the popup or context menu.
-* **User Intention:** Remove the last two clicks from the fast path.
-* **Target Integration Point:** `extension/manifest.json` -> `commands`, dispatched through the existing `handle` switch.
-
-### [WISHLIST: Side-Panel-Reader] | Aliases: sidebar, reader view, split view
-> **1-Line Summary:** A persistent side panel showing the captured note beside the page.
-* **User Intention:** Read and clip without the popup closing on every click elsewhere.
-* **Target Integration Point:** The existing popup panes in `extension/src/pages/popup.html`, reused in a side-panel surface.
 
 ### [WISHLIST: Shadow-DOM-And-Iframe-Capture] | Aliases: web components, nested frames, missing content
 > **1-Line Summary:** Reach content that lives inside shadow roots or iframes, which is currently invisible to the extractors.

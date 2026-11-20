@@ -310,6 +310,50 @@ flowchart LR
 * **Code Anchors (Grep Targets):**
   * `SCOPE.md` -> section "Out of scope — do not implement"
 
+### [DECISION: On-Demand-Content-Script-Injection] | Aliases: scripting API, executeScript, manifest pruning
+> **1-Line Summary:** Content scripts are injected on demand via `chrome.scripting.executeScript` when capturing instead of running passively on all web pages.
+* **Decision Maker:** `[DECIDED BY: AGENT - Approved by Human]`
+* **Original User Intention:** Keep the browser fast, memory-light, and secure without injecting extraction logic into tabs that are never clipped.
+* **Options Considered:**
+  * **Option A (Rejected):** Declare broad `<all_urls>` matches in `manifest.json` content scripts, executing JavaScript in every tab and iframe on startup.
+  * **Option B (Chosen):** Inject `CONTENT_FILES` programmatically on demand inside `background.js` when the user triggers popup, shortcut, or side panel actions.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Passive["❌ Passive All-URL Injection (Heavy)"]
+        A1[Browser opens tabs] --> A2[Content script injected into every tab]
+        A2 --> A3[Wastes memory and CPU]
+    end
+    subgraph OnDemand["✅ On-Demand Injection (Light)"]
+        B1[User clicks clip action] --> B2[chrome.scripting.executeScript runs]
+        B2 --> B3[Extracts active tab only]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `extension/src/background.js` -> `ensureContentInjected`, `CONTENT_FILES`
+
+### [DECISION: Local-Service-Origin-Pinning-And-Symlink-Guards] | Aliases: security hardening, origin pin, symlink guard, SSRF
+> **1-Line Summary:** Local service pins caller origins to extension IDs and resolves realpaths to block symlink escapes and cross-origin hijacking.
+* **Decision Maker:** `[DECIDED BY: AGENT - Approved by Human]`
+* **Original User Intention:** Protect local files and Obsidian vault data against rogue web pages, drive-by cross-origin attacks, and symlink breakout exploits.
+* **Options Considered:**
+  * **Option A (Rejected):** Permissive CORS allowing any `http://` or arbitrary browser extension origin, relying solely on lexical path checks.
+  * **Option B (Chosen):** Strict origin validation requiring `chrome-extension://` or matching extension ID, plus `fs.realpathSync` traversal assertions on the host filesystem.
+* **Visual Pivot Map (What Failed vs. What Works):**
+```mermaid
+flowchart LR
+    subgraph Insecure["❌ Open CORS & Lexical Path Checks"]
+        A1[Malicious web page calls 8787] --> A2[Lexical path .. passed via symlink]
+        A2 --> A3[Arbitrary file written outside vault]
+    end
+    subgraph Hardened["✅ Origin Pin + Realpath Guard"]
+        B1[Service checks Origin & Token] --> B2[fs.realpathSync validates boundary]
+        B2 --> B3[Vault writes strictly confined]
+    end
+```
+* **Code Anchors (Grep Targets):**
+  * `local-service/host.js` -> `assertInside`, `resolveRealWithMissingTail`, `isOriginAllowed`
+
 ## 2. Do-Not-Touch Engineering Landmines (Traps)
 
 ### [TRAP: Content-Script-Load-Order] | Aliases: globalThis.OC, classic scripts, manifest order, OC undefined
@@ -394,3 +438,10 @@ flowchart LR
 * **Why This Trap Exists (Plain English):** Settings live in `chrome.storage.sync` under these literal names. Renaming a key does not rename stored data — it silently falls back to the default value, so the owner's vault path and folder configuration appear to vanish.
 * **Protected Code Anchors (Grep Targets):**
   * `extension/src/lib/settings.js` -> `DEFAULTS`, `getSettings`, `setSettings`
+
+### [TRAP: Windows-Symlink-Privilege-In-Tests] | Aliases: symlink EPERM, directory junction, win32 symlinkSync
+> **1-Line Summary:** **NEVER** call `fs.symlinkSync(..., 'dir')` unconditionally on Windows in tests; use `'junction'` on `win32` or handle `EPERM` without breaking non-admin test suites.
+* **Strict Rule:** Always specify `process.platform === 'win32' ? 'junction' : 'dir'` when testing directory reparse points / symlink traversals on Windows.
+* **Why This Trap Exists (Plain English):** Windows requires elevated Administrator privileges or Windows Developer Mode for non-directory symlinks and standard directory symlinks (`'dir'`), throwing `EPERM: operation not permitted`. NTFS directory junctions (`'junction'`) can be created without elevated privileges and exercise the exact same `fs.realpathSync` traversal defenses.
+* **Protected Code Anchors (Grep Targets):**
+  * `test/service-test.js` -> `fs.symlinkSync`

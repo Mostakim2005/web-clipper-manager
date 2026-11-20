@@ -26,6 +26,7 @@ flowchart TB
         C4[opSaveHtml]
         C5[opSaveBinary]
         C6[opPickFolder]
+        C7[opExists]
     end
 
     B4 --> C1
@@ -33,6 +34,7 @@ flowchart TB
     B4 --> C4
     B4 --> C5
     B4 --> C6
+    B4 --> C7
 
     subgraph Vault["Obsidian Vault (local disk)"]
         D1[Note .md]

@@ -175,7 +175,8 @@ async function rpc(payload) {
     const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omni-outside-'));
     const linkPath = path.join(vault, 'escape-link');
     try {
-      fs.symlinkSync(outsideDir, linkPath, 'dir');
+      const symType = process.platform === 'win32' ? 'junction' : 'dir';
+      fs.symlinkSync(outsideDir, linkPath, symType);
       const symRefused = await rpc({
         op: 'save',
         vault,
@@ -187,7 +188,18 @@ async function rpc(payload) {
       check('symlink escape wrote nothing outside vault', () =>
         assert(!fs.existsSync(path.join(outsideDir, 'pwned.md')))
       );
+    } catch (err) {
+      if (err.code === 'EPERM' || err.code === 'ENOSYS') {
+        console.log('  skip symlink test (permission denied on this OS)');
+      } else {
+        throw err;
+      }
     } finally {
+      try {
+        if (fs.existsSync(linkPath)) {
+          fs.rmSync(linkPath, { recursive: true, force: true });
+        }
+      } catch {}
       fs.rmSync(outsideDir, { recursive: true, force: true });
     }
 
