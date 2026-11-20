@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "web-clipper-manager",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "private": true,
   "description": "Clip Facebook, Twitter/X, Reddit and articles into one Obsidian-ready Markdown format, with PNG and PDF output.",
   "scripts": {
